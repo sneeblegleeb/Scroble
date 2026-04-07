@@ -137,14 +137,14 @@
         <div class="small" style="margin-top:8px">Current source: <span id="dictSourceLabel">Built-in compact list</span></div>
         <div class="small" style="margin-top:6px">External full-list loading works best when the game is served over http/https, not opened directly as a file.</div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn" id="retryDictBtn">Retry External Dictionary</button>
+          <button class="btn" id="retryDictBtn">Reload Repo Dictionary</button>
           <label class="btn" for="dictFileInput" style="display:inline-flex;align-items:center">Load Word List File</label>
           <input id="dictFileInput" type="file" accept=".txt,.dic,.lst,.json" style="display:none" />
         </div>
-        <div class="small" style="margin-top:8px">Best method on GitHub Pages: upload a file like <code>words.txt</code>, <code>scrabble-dictionary.txt</code>, or <code>words_dictionary.json</code> in the same repo as this game. The game will try same-origin files first.</div>
+        <div class="small" style="margin-top:8px">Automatic loading now only checks your own repo on page load or when you press reload. Put a file like <code>words.txt</code>, <code>scrabble-dictionary.txt</code>, <code>dictionary.txt</code>, <code>words_dictionary.json</code>, or <code>dictionary.json</code> in the same repo as this game.</div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input id="dictUrlInput" type="text" placeholder="Custom dictionary URL or /words.txt" style="flex:1;min-width:220px;background:#0b1220;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px" />
-          <button class="btn" id="loadDictUrlBtn">Load URL</button>
+          <input id="dictUrlInput" type="text" placeholder="Custom repo path like /words.txt or ./assets/words.txt" style="flex:1;min-width:220px;background:#0b1220;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px" />
+          <button class="btn" id="loadDictUrlBtn">Load Path</button>
         </div>
       </div>
 
@@ -208,7 +208,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   let DICT = new Set(WORDS);
   let dictionarySource = 'Built-in compact list';
   let dictionaryMode = 'builtin';
-  let externalDictionaryLoaded = false;
+  let repoDictionaryLoaded = false;
   const SAME_ORIGIN_DICTIONARY_PATHS = [
     './words.txt',
     './scrabble-dictionary.txt',
@@ -216,11 +216,6 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     './assets/words.txt',
     './words_dictionary.json',
     './dictionary.json'
-  ];
-
-  const CROSS_ORIGIN_DICTIONARY_URLS = [
-    'https://cdn.jsdelivr.net/gh/dwyl/english-words@master/words_alpha.txt',
-    'https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt'
   ];
 
   const state = {
@@ -248,6 +243,90 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   const checkerBtn = document.getElementById('checkerBtn');
   const checkerResult = document.getElementById('checkerResult');
 
+  const SAVE_KEY = 'scrabble_style_duel_save_v1';
+
+  function snapshotState(){
+    return {
+      difficulty: state.difficulty,
+      board: state.board,
+      bag: state.bag,
+      playerRack: state.playerRack,
+      botRack: state.botRack,
+      pending: state.pending,
+      selectedRackIndex: state.selectedRackIndex,
+      playerScore: state.playerScore,
+      botScore: state.botScore,
+      currentTurn: state.currentTurn,
+      gameStarted: state.gameStarted,
+      passesInRow: state.passesInRow,
+      firstMove: state.firstMove,
+      botThinking: false,
+      log: state.log,
+      botLastMovePositions: state.botLastMovePositions,
+      dictUrlInputValue: dictUrlInput ? dictUrlInput.value : ''
+    };
+  }
+
+  function saveGameState(){
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snapshotState()));
+    } catch (err) {
+      console.warn('Could not save game state.', err);
+    }
+  }
+
+  function clearSavedGameState(){
+    try {
+      localStorage.removeItem(SAVE_KEY);
+    } catch (err) {
+      console.warn('Could not clear saved game state.', err);
+    }
+  }
+
+  function loadSavedGameState(){
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      if (!saved || typeof saved !== 'object') return false;
+      if (!Array.isArray(saved.board) || !Array.isArray(saved.bag) || !Array.isArray(saved.playerRack) || !Array.isArray(saved.botRack)) return false;
+
+      state.difficulty = saved.difficulty || 'medium';
+      state.board = saved.board;
+      state.bag = saved.bag;
+      state.playerRack = saved.playerRack;
+      state.botRack = saved.botRack;
+      state.pending = Array.isArray(saved.pending) ? saved.pending : [];
+      state.selectedRackIndex = Number.isInteger(saved.selectedRackIndex) ? saved.selectedRackIndex : null;
+      state.playerScore = Number(saved.playerScore) || 0;
+      state.botScore = Number(saved.botScore) || 0;
+      state.currentTurn = saved.currentTurn === 'bot' ? 'bot' : 'player';
+      state.gameStarted = !!saved.gameStarted;
+      state.passesInRow = Number(saved.passesInRow) || 0;
+      state.firstMove = !!saved.firstMove;
+      state.botThinking = false;
+      state.log = Array.isArray(saved.log) ? saved.log : [];
+      state.botLastMovePositions = Array.isArray(saved.botLastMovePositions) ? saved.botLastMovePositions : [];
+      if (dictUrlInput && typeof saved.dictUrlInputValue === 'string') dictUrlInput.value = saved.dictUrlInputValue;
+
+      document.querySelectorAll('.diff').forEach(d => d.classList.toggle('active', d.dataset.difficulty === state.difficulty));
+      difficultyTag.textContent = `Difficulty: ${capitalize(state.difficulty)}`;
+      saveGameState();
+      overlay.style.display = 'none';
+      renderAll();
+      if (state.gameStarted) {
+        setStatus(state.currentTurn === 'bot' ? 'Bot turn restored after refresh. Tap Pass if it gets stuck.' : 'Saved game restored. Your turn.');
+      } else if (state.log.length) {
+        setStatus('Previous game restored. Start a new game to reset the board.');
+      }
+      return true;
+    } catch (err) {
+      console.warn('Could not load saved game state.', err);
+      return false;
+    }
+  }
+
+
   function updateDictionaryUI(message){
     if (dictSourceLabelEl) dictSourceLabelEl.textContent = dictionarySource;
     if (dictStatusEl && message) dictStatusEl.innerHTML = message;
@@ -260,46 +339,50 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     DICT = new Set(cleaned);
     dictionarySource = sourceLabel;
     dictionaryMode = mode;
-    externalDictionaryLoaded = mode !== 'builtin';
+    repoDictionaryLoaded = mode !== 'builtin';
     updateDictionaryUI(`Loaded <strong>${cleaned.length.toLocaleString()}</strong> words from ${sourceLabel}.`);
+    saveGameState();
     return true;
   }
 
-  async function tryLoadExternalDictionary(force=false){
-    if (externalDictionaryLoaded && !force) return true;
-    if (location.protocol === 'file:') {
-      updateDictionaryUI('External dictionary loading is usually blocked when the game is opened directly as a <strong>file://</strong> page. The built-in list is active. Host the file on GitHub Pages or run a tiny local web server if you want automatic external loading.');
-      return false;
-    }
-    updateDictionaryUI('Trying to load a larger external dictionary...');
-    for (const url of EXTERNAL_DICTIONARY_URLS) {
-      try {
-        const res = await fetch(url, {cache:'no-store'});
-        if (!res.ok) continue;
-        const txt = await res.text();
-        const words = txt.split(/\r?\n|\s+/);
-        if (setDictionary(words, `external list (${new URL(url).hostname})`, 'external')) {
-          logMessage(`External dictionary loaded from ${new URL(url).hostname}.`);
-          return true;
-        }
-      } catch (err) {
+  async function loadDictionaryFromPath(path, label='repo file'){
+    const target = String(path || '').trim();
+    if (!target) return false;
+    try {
+      const res = await fetch(target, {cache:'no-store'});
+      if (!res.ok) return false;
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+      const raw = await res.text();
+      let words = [];
+      if (target.toLowerCase().endsWith('.json') || contentType.includes('application/json')) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) words = parsed;
+        else if (parsed && typeof parsed === 'object') words = Object.keys(parsed);
+      } else {
+        words = raw.split(/\r?\n|\s+/);
       }
+      if (setDictionary(words, label, 'repo')) {
+        logMessage(`Dictionary loaded from ${target}.`);
+        return true;
+      }
+    } catch (err) {
     }
-    updateDictionaryUI('Could not load the external dictionary. The built-in compact list is still active.');
     return false;
   }
 
-  async function checkWordAgainstOnline(word){
-    if (location.protocol === 'file:') return null;
-    const cleaned = word.trim().toLowerCase();
-    if (!/^[a-z]{2,15}$/.test(cleaned)) return null;
-    try {
-      const resp = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleaned)}`, {cache:'no-store'});
-      if (resp.ok) return true;
-      if (resp.status === 404) return false;
-    } catch (err) {
+  async function tryLoadRepoDictionary(force=false){
+    if (repoDictionaryLoaded && !force) return true;
+    if (location.protocol === 'file:') {
+      updateDictionaryUI('Automatic repo dictionary loading needs the game to be served over <strong>http://</strong> or <strong>https://</strong>. When opened directly as <strong>file://</strong>, the built-in list stays active unless you manually load a file.');
+      return false;
     }
-    return null;
+    updateDictionaryUI('Trying to load a dictionary from this repo...');
+    for (const path of SAME_ORIGIN_DICTIONARY_PATHS) {
+      const ok = await loadDictionaryFromPath(path, `repo dictionary (${path})`);
+      if (ok) return true;
+    }
+    updateDictionaryUI('No repo dictionary file was found, so the built-in compact list is still active. Upload <code>words.txt</code> or another supported dictionary file into the same repo to use a larger list automatically.');
+    return false;
   }
 
   async function runWordCheck(){
@@ -317,22 +400,6 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     if (DICT.has(word)) {
       checkerResult.classList.add('good');
       checkerResult.innerHTML = `<strong>${word}</strong> is in the active dictionary (${dictionarySource}).`;
-      return;
-    }
-    if (dictionaryMode === 'builtin') {
-      checkerResult.innerHTML = `Checking <strong>${word}</strong> against an online dictionary...`;
-      const online = await checkWordAgainstOnline(word);
-      checkerResult.className = 'checker-result';
-      if (online === true) {
-        checkerResult.classList.add('good');
-        checkerResult.innerHTML = `<strong>${word}</strong> was not in the built-in compact list, but an online dictionary recognizes it.`;
-      } else if (online === false) {
-        checkerResult.classList.add('bad');
-        checkerResult.innerHTML = `<strong>${word}</strong> was not found in the built-in list or the online check.`;
-      } else {
-        checkerResult.classList.add('bad');
-        checkerResult.innerHTML = `<strong>${word}</strong> is not in the active built-in dictionary. Online verification was unavailable.`;
-      }
       return;
     }
     checkerResult.classList.add('bad');
@@ -441,6 +508,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 
   function newGame(){
+    clearSavedGameState();
     state.board = createEmptyBoard();
     state.bag = buildBag();
     state.playerRack = [];
@@ -468,6 +536,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     renderRack();
     renderLog();
     updateScoreUI();
+    saveGameState();
   }
 
   function onBoardClick(e){
@@ -502,6 +571,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     shuffleArray(state.playerRack);
     state.selectedRackIndex = null;
     renderRack();
+    saveGameState();
   }
 
   function countLetters(arr){
@@ -648,6 +718,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     if (checkEndGame()) return;
     state.currentTurn = 'bot';
     setStatus(`Bot is thinking...`);
+    saveGameState();
     window.setTimeout(botTurn, 350);
   }
 
@@ -660,6 +731,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
       if (checkEndGame()) return;
       state.currentTurn = 'bot';
       setStatus('Bot is thinking...');
+      saveGameState();
       window.setTimeout(botTurn, 300);
     }
   }
@@ -850,6 +922,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
       if (checkEndGame()) return;
       state.currentTurn = 'player';
       setStatus('Bot passed. Your turn.');
+      saveGameState();
       return;
     }
 
@@ -880,10 +953,11 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     if (checkEndGame()) return;
     state.currentTurn = 'player';
     setStatus(`Your turn. The bot played ${chosen.word}.`);
+    saveGameState();
   }
 
   document.getElementById('submitBtn').addEventListener('click', submitPlayerMove);
-  retryDictBtn.addEventListener('click', () => { tryLoadExternalDictionary(true); });
+  retryDictBtn.addEventListener('click', () => { tryLoadRepoDictionary(true); });
   loadDictUrlBtn.addEventListener('click', () => { loadCustomDictionaryUrl(dictUrlInput.value); });
   dictUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadCustomDictionaryUrl(dictUrlInput.value); });
   dictFileInput.addEventListener('change', async (e) => {
@@ -917,7 +991,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   document.getElementById('newGameBtn').addEventListener('click', () => overlay.style.display = 'flex');
   document.getElementById('newGameTop').addEventListener('click', () => overlay.style.display = 'flex');
   document.getElementById('howBtn').addEventListener('click', () => {
-    alert('How to play:\n\n1. Choose a difficulty and start a game.\n2. Click a rack tile, then click a board square to place it.\n3. All tiles played this turn must be in one row or one column.\n4. The first word must cover the center star.\n5. Click Submit Move to score the word and let the bot play.\n6. Click a newly placed tile to take it back, or use Recall Tiles.\n7. The game starts with a built-in dictionary and tries to load a larger external list when the browser allows it. If you open the file directly and external loading fails, use GitHub Pages or the Load Word List File button.');
+    alert('How to play:\n\n1. Choose a difficulty and start a game.\n2. Click a rack tile, then click a board square to place it.\n3. All tiles played this turn must be in one row or one column.\n4. The first word must cover the center star.\n5. Click Submit Move to score the word and let the bot play.\n6. Click a newly placed tile to take it back, or use Recall Tiles.\n7. The game auto-saves in your browser and restores on refresh. Use New Game when you want to reset the board.\n8. The game starts with a built-in dictionary and tries to load a repo dictionary file automatically. You can still use the Load Word List File button any time.');
   });
 
   document.querySelectorAll('.diff').forEach(el => {
@@ -934,9 +1008,10 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     newGame();
   });
 
-  updateDictionaryUI('Starting with the built-in compact dictionary. The game will try same-origin dictionary files first, then external fallbacks.');
-  tryLoadExternalDictionary(false);
-  renderAll();
+  updateDictionaryUI('Starting with the built-in compact dictionary. The game will try the repo dictionary file automatically on load.');
+  tryLoadRepoDictionary(false);
+  const restored = loadSavedGameState();
+  if (!restored) renderAll();
 })();
 </script>
 </body>
