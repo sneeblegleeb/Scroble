@@ -65,11 +65,6 @@
   .message-log{max-height:200px;overflow:auto;background:#202838;border-radius:12px;padding:10px}
   .message-log div{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)}
   .message-log div:last-child{border-bottom:0}
-  .checker-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .checker-row input{flex:1;min-width:0;background:#202838;color:var(--text);border:1px solid #4c5774;border-radius:10px;padding:10px 12px;font-size:14px}
-  .checker-result{background:#202838;border-radius:12px;padding:10px;min-height:58px;line-height:1.35}
-  .checker-result.good{outline:2px solid rgba(132,224,166,.45)}
-  .checker-result.bad{outline:2px solid rgba(255,155,155,.45)}
   @media (max-width:1100px){.layout{grid-template-columns:1fr}}
   @media (max-width:650px){.board{grid-template-columns:repeat(15,32px);grid-template-rows:repeat(15,32px)}.cell{width:32px;height:32px}.cell .bonus{font-size:8px}.letter{font-size:16px}.rack-slot{width:42px;height:42px}.title{font-size:24px}}
 </style>
@@ -79,7 +74,7 @@
   <div class="topbar">
     <div>
       <div class="title">Scrabble-Style Duel</div>
-      <div class="subtitle">Single-file word game with online dictionary fallback, board bonuses, 7-tile racks, and bot difficulty.</div>
+      <div class="subtitle">Single-file word game with built-in fallback dictionary, optional larger external list, board bonuses, 7-tile racks, and bot difficulty.</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn primary" id="newGameTop">New Game</button>
@@ -138,17 +133,28 @@
 
       <div class="sidebar-section">
         <div style="font-weight:700;margin-bottom:8px">Dictionary</div>
-        <div class="status" id="dictionaryStatus">Built-in compact dictionary loaded.</div>
-        <div class="tag" id="dictionaryTag">Dictionary: Built-in compact</div>
+        <div class="status" id="dictStatus">Starting with built-in compact dictionary.</div>
+        <div class="small" style="margin-top:8px">Current source: <span id="dictSourceLabel">Built-in compact list</span></div>
+        <div class="small" style="margin-top:6px">External full-list loading works best when the game is served over http/https, not opened directly as a file.</div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn" id="retryDictBtn">Retry External Dictionary</button>
+          <label class="btn" for="dictFileInput" style="display:inline-flex;align-items:center">Load Word List File</label>
+          <input id="dictFileInput" type="file" accept=".txt,.dic,.lst,.json" style="display:none" />
+        </div>
+        <div class="small" style="margin-top:8px">Best method on GitHub Pages: upload a file like <code>words.txt</code>, <code>scrabble-dictionary.txt</code>, or <code>words_dictionary.json</code> in the same repo as this game. The game will try same-origin files first.</div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="dictUrlInput" type="text" placeholder="Custom dictionary URL or /words.txt" style="flex:1;min-width:220px;background:#0b1220;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px" />
+          <button class="btn" id="loadDictUrlBtn">Load URL</button>
+        </div>
       </div>
 
       <div class="sidebar-section">
         <div style="font-weight:700;margin-bottom:8px">Word Checker</div>
-        <div class="checker-row" style="margin-bottom:8px">
-          <input id="checkerInput" type="text" maxlength="15" placeholder="Type a word" autocomplete="off" spellcheck="false" />
+        <div class="checker-row">
+          <input id="checkerInput" type="text" placeholder="Type a word" maxlength="20" />
           <button class="btn" id="checkerBtn">Check</button>
         </div>
-        <div class="checker-result" id="checkerResult">Enter a word to see whether it exists in the current dictionary.</div>
+        <div class="checker-result" id="checkerResult" style="margin-top:8px">Type a word to see if it exists in the active dictionary.</div>
       </div>
 
       <div class="sidebar-section">
@@ -169,7 +175,7 @@
       <div class="diff" data-difficulty="hard"><h3>Hard</h3><p class="small" style="margin-top:6px">Best available move</p></div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-      <div class="small">This version starts with a built-in dictionary, then tries to upgrade to an online word list if one is reachable.</div>
+      <div class="small">Starts with the built-in dictionary, then tries to load a larger external word list when the browser allows it.</div>
       <button class="btn primary" id="beginBtn">Begin Game</button>
     </div>
   </div>
@@ -198,14 +204,24 @@ ABLE ACID ACNE ACORN ACRE ACTOR ACUTE ADAPT ADDED ADDER ADMIT ADOBE ADOPT ADORE 
 ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFORD AFRAID AGAINST AIRPORT ALMOST ALREADY ALWAYS AMOUNT ANCIENT ANIMAL ANNUAL ANSWER ANYBODY APPEAL APPEAR AROUND ARRANGE ARRIVAL ARTICLE ARTIST ASPECT ATTACK AUTHOR AUTUMN AVENUE AWAKEN BACKING BALANCE BARRIER BATTLE BEAUTY BECOME BEFORE BEHALF BEHAVE BEHIND BELIEVE BELONG BENEFIT BESIDE BETRAY BETTER BEYOND BINARY BISHOP BORDER BOTTLE BOTTOM BRANCH BREATH BREEZE BRIDGE BRIGHT BROTHER BUDGET BURDEN BUREAU BURGER BUTTON BUYING CAMERA CANNOT CARBON CAREFUL CAREER CARPET CASTLE CASUAL CAUSES CENTER CHANCE CHANGE CHARGE CHARTER CHICKEN CHOICE CHOOSE CHRONIC CIRCUIT CITIZEN CLASSIC CLIMATE CLOTHES COLLECT COLLEGE COMBINE COMFORT COMMAND COMMENT COMPACT COMPANY COMPARE COMPETE COMPLEX CONCEPT CONCERN CONDUCT CONFIRM CONNECT CONSENT CONSIST CONTACT CONTAIN CONTENT CONTEST CONTEXT CONTROL COOKING CORRECT COTTON COUNTRY COURAGE COURSE CREATE CREATOR CREDIT CRICKET CRISIS CUSTOM CUTTING DAMAGE DEALER DEBATE DECISION DEFAULT DELIVER DENSITY DEPOSIT DESERVE DESIGN DESPITE DESTINY DETAIL DEVELOP DIAMOND DIGITAL DINNER DIRECT DISCUSS DISEASE DISMISS DISPLAY DISTANT DISTRICT DIVIDED DOCTOR DOLLAR DOMAIN DOUBLE DRAWING DRIVING DYNAMIC EASILY EASTERN ECONOMY EDITION ELDERLY ELEMENT EMBRACE EMERGE EMOTION EMPLOYER ENABLED ENDLESS ENFORCE ENGLISH ENJOYED ENORMOUS ENOUGH ENSURE ENTERED ENTIRE EPISODE EQUALLY ESCAPE ESSENCE ESTATE ETHICAL EVENING EXACTLY EXAMPLE EXHIBIT EXPENSE EXPLAIN EXPLORE EXPRESS EXTREME FACTORY FAILURE FANTASY FARMING FASHION FEATURE FEDERAL FEELING FICTION FILLING FINANCE FINDING FINGER FINISH FIREMAN FISHING FITNESS FLORIST FLYINGLY FOREVER FORGET FORWARD FOUNDER FREEDOM FRIENDLY FURTHER GALLERY GARBAGE GARDENING GENERAL GENTLE GESTURE GIGABIT GLIMPSE GOLDEN GRABBER GRADUAL GRAVITY GROCERY GROWING HALLWAY HANDLER HAPPILY HARMONY HEARING HEAVILY HELPFUL HIGHWAY HIMSELF HISTORY HOLDING HOLIDAY HONESTY HOUSING HOWEVER HUNDRED HUSBAND HYDRATE ILLEGAL IMAGINE IMPACTS IMPROVE INCLUDE INITIAL INJURED INSECT INSIGHT INSPIRE INSTALL INSTEAD INTENSE INTEREST INVOLVE ISOLATE ITSELF JOURNEY JUSTICE KITCHEN LANGUAGE LEADING LEAGUE LEATHER LECTURE LEGENDS LIBERAL LIBRARY LICENSE LIMITED LOGICAL MACHINE MANAGER MANNERLY MARKET MASSIVE MEANING MEASURE MEDICAL MEETING MENTION MESSAGE MILLION MINERAL MINIMUM MISTAKE MONITOR MORNING MYSTERY NATURAL NEARBY NERVOUS NETWORK NOTABLE NOTHING NUCLEAR OBJECTS OBSERVE OBVIOUS OFFICER OPENING OPERATE OPINION ORANGEY ORGANIC OUTCOME OUTDOOR OUTSIDE PACKAGE PAINTING PARENTS PASSAGE PATIENT PATTERN PAYMENT PENSION PERHAPS PERFORM PHYSICS PICTURE PLANNED PLASTIC PLATFORM PLEASURE POCKETS POPULAR PORTION POVERTY PRECISE PREDICT PREFER PREPARE PRESENT PREVENT PRIMARY PRINTER PRIVATE PROBABLY PROBLEM PROCESS PROFILE PROGRAM PROGRESS PROJECT PROMISE PROTECT PROTEST PROVIDE PURPOSE QUALIFY QUALITY QUANTUM QUARTER RADICAL RAILWAY RANDOMLY REACTION REALITY REALIZE RECEIVE RECOVER REDUCED REFLECT REGULAR RELATED RELIEVE REMAINS REMEMBER REMOVAL REPLACE REQUEST REQUIRE RESCUE RESERVE RESOLVE RESPECT RESPOND RESTORE RETIRED REVEALS REVENUE REVERSE ROUTINE RUNNING SCIENCE SECTION SECURED SEEKING SERIOUS SERVICE SEVENTH SEVERAL SHADOWY SHARING SHOULDER SIGNALS SILENCE SIMILAR SINCERE SITTING SKILLED SOCIETY SOMEONE SPECIAL SPIRITUAL STADIUM STANDARD STARTED STATION STORAGE STRANGE STRETCH STUDIO SUBJECT SUCCESS SUPPORT SUPPOSE SURFACE SURGERY SURVIVE TEACHER TELLING TENSION THEATER THOUGHT THREATEN THROUGH TONIGHT TOURIST TOWARDS TRAFFIC TRANSIT TRAVELER TREASURE TYPICAL UNIFORM UNKNOWN UNTAMED UPWARDS USELESS USUALLY VACUUM VARIETY VEHICLE VERSION VICTORY VILLAGE VINTAGE VISIBLE VISITOR WALKING WANTING WARMING WARNING WASHING WEAPONRY WEATHER WEDDING WEEKEND WELCOME WESTERN WHEREVER WITHOUT WORKING WRITING YESTERDAY`;
 
   const BUILTIN_WORDS = Array.from(new Set(DICTIONARY_TEXT.trim().split(/\s+/).map(w => w.toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length >= 2 && w.length <= 15)));
-  const ONLINE_DICTIONARY_SOURCES = [
-    { name: 'NSWL 2020', url: 'https://raw.githubusercontent.com/scrabblewords/scrabblewords/main/words/North-American/NSWL2020.txt' },
-    { name: 'Common Words 5000', url: 'https://raw.githubusercontent.com/MichaelWehar/Public-Domain-Word-Lists/master/5000-more-common.txt' }
-  ];
-  let WORDS = BUILTIN_WORDS.slice();
+  let WORDS = [...BUILTIN_WORDS];
   let DICT = new Set(WORDS);
-  let dictionarySource = 'Built-in compact';
-  let dictionaryIsOnline = false;
+  let dictionarySource = 'Built-in compact list';
+  let dictionaryMode = 'builtin';
+  let externalDictionaryLoaded = false;
+  const SAME_ORIGIN_DICTIONARY_PATHS = [
+    './words.txt',
+    './scrabble-dictionary.txt',
+    './dictionary.txt',
+    './assets/words.txt',
+    './words_dictionary.json',
+    './dictionary.json'
+  ];
+
+  const CROSS_ORIGIN_DICTIONARY_URLS = [
+    'https://cdn.jsdelivr.net/gh/dwyl/english-words@master/words_alpha.txt',
+    'https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt'
+  ];
 
   const state = {
     difficulty: 'medium', board: [], bag: [], playerRack: [], botRack: [], pending: [], selectedRackIndex: null,
@@ -220,83 +236,108 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   const playerScoreEl = document.getElementById('playerScore');
   const botScoreEl = document.getElementById('botScore');
   const difficultyTag = document.getElementById('difficultyTag');
-  const dictionaryTag = document.getElementById('dictionaryTag');
-  const dictionaryStatus = document.getElementById('dictionaryStatus');
+  const tilesLeftTag = document.getElementById('tilesLeftTag');
+  const overlay = document.getElementById('startOverlay');
+  const dictStatusEl = document.getElementById('dictStatus');
+  const dictSourceLabelEl = document.getElementById('dictSourceLabel');
+  const retryDictBtn = document.getElementById('retryDictBtn');
+  const dictFileInput = document.getElementById('dictFileInput');
+  const dictUrlInput = document.getElementById('dictUrlInput');
+  const loadDictUrlBtn = document.getElementById('loadDictUrlBtn');
   const checkerInput = document.getElementById('checkerInput');
   const checkerBtn = document.getElementById('checkerBtn');
   const checkerResult = document.getElementById('checkerResult');
 
-  function setDictionaryUI(statusText){
-    dictionaryTag.textContent = `Dictionary: ${dictionarySource}`;
-    dictionaryStatus.innerHTML = `${statusText}<br><span class="small">${WORDS.length.toLocaleString()} words currently loaded.</span>`;
+  function updateDictionaryUI(message){
+    if (dictSourceLabelEl) dictSourceLabelEl.textContent = dictionarySource;
+    if (dictStatusEl && message) dictStatusEl.innerHTML = message;
   }
 
-  function parseWordList(raw){
-    return Array.from(new Set(raw.split(/\s+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length >= 2 && w.length <= 15)));
+  function setDictionary(words, sourceLabel, mode){
+    const cleaned = Array.from(new Set(words.map(w => String(w).trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length >= 2 && w.length <= 15)));
+    if (!cleaned.length) return false;
+    WORDS = cleaned;
+    DICT = new Set(cleaned);
+    dictionarySource = sourceLabel;
+    dictionaryMode = mode;
+    externalDictionaryLoaded = mode !== 'builtin';
+    updateDictionaryUI(`Loaded <strong>${cleaned.length.toLocaleString()}</strong> words from ${sourceLabel}.`);
+    return true;
   }
 
-  async function fetchTextWithTimeout(url, timeoutMs = 7000){
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(url, {signal: controller.signal, mode: 'cors', cache: 'no-store'});
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.text();
-    } finally {
-      clearTimeout(timer);
+  async function tryLoadExternalDictionary(force=false){
+    if (externalDictionaryLoaded && !force) return true;
+    if (location.protocol === 'file:') {
+      updateDictionaryUI('External dictionary loading is usually blocked when the game is opened directly as a <strong>file://</strong> page. The built-in list is active. Host the file on GitHub Pages or run a tiny local web server if you want automatic external loading.');
+      return false;
     }
-  }
-
-  async function initializeDictionary(){
-    setDictionaryUI('Built-in dictionary ready. Checking for a larger online dictionary...');
-    for (const source of ONLINE_DICTIONARY_SOURCES) {
+    updateDictionaryUI('Trying to load a larger external dictionary...');
+    for (const url of EXTERNAL_DICTIONARY_URLS) {
       try {
-        const raw = await fetchTextWithTimeout(source.url);
-        const parsed = parseWordList(raw);
-        if (parsed.length > WORDS.length) {
-          WORDS = parsed;
-          DICT = new Set(parsed);
-          dictionarySource = source.name;
-          dictionaryIsOnline = true;
-          setDictionaryUI(`Online dictionary loaded successfully from <b>${source.name}</b>.`);
-          logMessage(`Dictionary upgraded to <b>${source.name}</b> (${WORDS.length.toLocaleString()} words).`);
-          return;
+        const res = await fetch(url, {cache:'no-store'});
+        if (!res.ok) continue;
+        const txt = await res.text();
+        const words = txt.split(/\r?\n|\s+/);
+        if (setDictionary(words, `external list (${new URL(url).hostname})`, 'external')) {
+          logMessage(`External dictionary loaded from ${new URL(url).hostname}.`);
+          return true;
         }
       } catch (err) {
-        // try next source
       }
     }
-    dictionarySource = 'Built-in compact';
-    dictionaryIsOnline = false;
-    setDictionaryUI('Online dictionary unavailable, using the built-in compact dictionary.');
-    logMessage('Online dictionary unavailable. Using the built-in compact dictionary.');
+    updateDictionaryUI('Could not load the external dictionary. The built-in compact list is still active.');
+    return false;
   }
 
-  function checkLookupWord(){
-    const raw = checkerInput.value.trim().toUpperCase();
-    checkerResult.classList.remove('good','bad');
-    if (!raw) {
-      checkerResult.textContent = 'Enter a word to see whether it exists in the current dictionary.';
-      return;
+  async function checkWordAgainstOnline(word){
+    if (location.protocol === 'file:') return null;
+    const cleaned = word.trim().toLowerCase();
+    if (!/^[a-z]{2,15}$/.test(cleaned)) return null;
+    try {
+      const resp = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleaned)}`, {cache:'no-store'});
+      if (resp.ok) return true;
+      if (resp.status === 404) return false;
+    } catch (err) {
     }
-    if (!/^[A-Z]+$/.test(raw)) {
-      checkerResult.textContent = 'Use letters only.';
-      checkerResult.classList.add('bad');
-      return;
-    }
-    if (raw.length < 2 || raw.length > 15) {
-      checkerResult.textContent = 'The checker only accepts words from 2 to 15 letters long.';
-      checkerResult.classList.add('bad');
-      return;
-    }
-    const found = DICT.has(raw);
-    checkerResult.innerHTML = found
-      ? `<b>${raw}</b> is in the dictionary.<br><span class="small">Source: ${dictionarySource}</span>`
-      : `<b>${raw}</b> is not in the dictionary.<br><span class="small">Source: ${dictionarySource}</span>`;
-    checkerResult.classList.add(found ? 'good' : 'bad');
+    return null;
   }
-  const tilesLeftTag = document.getElementById('tilesLeftTag');
-  const overlay = document.getElementById('startOverlay');
+
+  async function runWordCheck(){
+    const word = checkerInput.value.trim().toUpperCase();
+    checkerResult.className = 'checker-result';
+    if (!word) {
+      checkerResult.textContent = 'Type a word to see if it exists in the active dictionary.';
+      return;
+    }
+    if (!/^[A-Z]+$/.test(word)) {
+      checkerResult.classList.add('bad');
+      checkerResult.textContent = 'Use letters only.';
+      return;
+    }
+    if (DICT.has(word)) {
+      checkerResult.classList.add('good');
+      checkerResult.innerHTML = `<strong>${word}</strong> is in the active dictionary (${dictionarySource}).`;
+      return;
+    }
+    if (dictionaryMode === 'builtin') {
+      checkerResult.innerHTML = `Checking <strong>${word}</strong> against an online dictionary...`;
+      const online = await checkWordAgainstOnline(word);
+      checkerResult.className = 'checker-result';
+      if (online === true) {
+        checkerResult.classList.add('good');
+        checkerResult.innerHTML = `<strong>${word}</strong> was not in the built-in compact list, but an online dictionary recognizes it.`;
+      } else if (online === false) {
+        checkerResult.classList.add('bad');
+        checkerResult.innerHTML = `<strong>${word}</strong> was not found in the built-in list or the online check.`;
+      } else {
+        checkerResult.classList.add('bad');
+        checkerResult.innerHTML = `<strong>${word}</strong> is not in the active built-in dictionary. Online verification was unavailable.`;
+      }
+      return;
+    }
+    checkerResult.classList.add('bad');
+    checkerResult.innerHTML = `<strong>${word}</strong> is not in the active dictionary (${dictionarySource}).`;
+  }
 
   function createEmptyBoard(){
     return Array.from({length: SIZE}, () => Array.from({length: SIZE}, () => null));
@@ -510,7 +551,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
       if (state.pending.some(p => !posSet.has(`${p.r},${p.c}`))) continue;
 
       if (!DICT.has(main.word)) {
-        tests.push({ok:false, reason:`${main.word} is not in the current dictionary.`});
+        tests.push({ok:false, reason:`${main.word} is not in the active dictionary.`});
         continue;
       }
       let touchesExisting = !state.firstMove ? false : true;
@@ -542,7 +583,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
           const cross = collectWordWithPending(pos.r, pos.c, dc, dr, pendingMap);
           if (cross.word.length > 1) {
             if (!DICT.has(cross.word)) {
-              tests.push({ok:false, reason:`Cross-word ${cross.word} is not in the current dictionary.`});
+              tests.push({ok:false, reason:`Cross-word ${cross.word} is not in the active dictionary.`});
               touchesExisting = null;
               break;
             }
@@ -842,13 +883,41 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   }
 
   document.getElementById('submitBtn').addEventListener('click', submitPlayerMove);
+  retryDictBtn.addEventListener('click', () => { tryLoadExternalDictionary(true); });
+  loadDictUrlBtn.addEventListener('click', () => { loadCustomDictionaryUrl(dictUrlInput.value); });
+  dictUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadCustomDictionaryUrl(dictUrlInput.value); });
+  dictFileInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const txt = await file.text();
+      let words = [];
+      if (file.name.toLowerCase().endsWith('.json')) {
+        const parsed = JSON.parse(txt);
+        words = Array.isArray(parsed) ? parsed : Array.isArray(parsed.words) ? parsed.words : [];
+      } else {
+        words = txt.split(/\r?\n|\s+/);
+      }
+      if (setDictionary(words, `local file (${file.name})`, 'file')) {
+        logMessage(`Loaded dictionary file: ${file.name}.`);
+      } else {
+        updateDictionaryUI('That file did not contain any usable A-Z words.');
+      }
+    } catch (err) {
+      updateDictionaryUI('Could not read that dictionary file.');
+    } finally {
+      e.target.value = '';
+    }
+  });
+  checkerBtn.addEventListener('click', runWordCheck);
+  checkerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runWordCheck(); });
   document.getElementById('recallBtn').addEventListener('click', recallTiles);
   document.getElementById('shuffleBtn').addEventListener('click', shuffleRack);
   document.getElementById('passBtn').addEventListener('click', passTurn);
   document.getElementById('newGameBtn').addEventListener('click', () => overlay.style.display = 'flex');
   document.getElementById('newGameTop').addEventListener('click', () => overlay.style.display = 'flex');
   document.getElementById('howBtn').addEventListener('click', () => {
-    alert('How to play:\n\n1. Choose a difficulty and start a game.\n2. Click a rack tile, then click a board square to place it.\n3. All tiles played this turn must be in one row or one column.\n4. The first word must cover the center star.\n5. Click Submit Move to score the word and let the bot play.\n6. Click a newly placed tile to take it back, or use Recall Tiles.\n7. The game starts with a built-in dictionary, then tries to upgrade to a larger online word list. You can also use the word checker on the right.');
+    alert('How to play:\n\n1. Choose a difficulty and start a game.\n2. Click a rack tile, then click a board square to place it.\n3. All tiles played this turn must be in one row or one column.\n4. The first word must cover the center star.\n5. Click Submit Move to score the word and let the bot play.\n6. Click a newly placed tile to take it back, or use Recall Tiles.\n7. The game starts with a built-in dictionary and tries to load a larger external list when the browser allows it. If you open the file directly and external loading fails, use GitHub Pages or the Load Word List File button.');
   });
 
   document.querySelectorAll('.diff').forEach(el => {
@@ -865,14 +934,9 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     newGame();
   });
 
-  checkerBtn.addEventListener('click', checkLookupWord);
-  checkerInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') checkLookupWord();
-  });
-
-  setDictionaryUI('Built-in dictionary ready. Checking for a larger online dictionary...');
+  updateDictionaryUI('Starting with the built-in compact dictionary. The game will try same-origin dictionary files first, then external fallbacks.');
+  tryLoadExternalDictionary(false);
   renderAll();
-  initializeDictionary();
 })();
 </script>
 </body>
