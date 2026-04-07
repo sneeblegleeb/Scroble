@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scrabble-Style Duel</title>
+<style>
+  :root{
+    --bg:#1f2430; --panel:#2a3142; --panel2:#343d52; --text:#eef3ff; --muted:#b8c1d9;
+    --accent:#8fd3ff; --good:#84e0a6; --bad:#ff9b9b; --tile:#f5d8a8; --tile2:#e9c17d;
+    --dw:#ff9db4; --tw:#ff6262; --dl:#8bd0ff; --tl:#4d94ff; --center:#ffd166;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#18202c,#10151d);color:var(--text)}
+  .app{max-width:1360px;margin:0 auto;padding:14px}
+  h1,h2,h3,p{margin:0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .title{font-size:28px;font-weight:700}
+  .subtitle{font-size:13px;color:var(--muted);margin-top:4px}
+  .btn, select{
+    background:var(--panel2);color:var(--text);border:1px solid #4c5774;border-radius:10px;
+    padding:10px 14px;font-size:14px
+  }
+  .btn{cursor:pointer;transition:transform .08s ease, filter .12s ease}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:#3a5c89;border-color:#6e96cd}
+  .btn.good{background:#29553c;border-color:#4f9a70}
+  .btn.warn{background:#6a3941;border-color:#bc6c79}
+  .layout{display:grid;grid-template-columns:1fr 340px;gap:14px}
+  .panel{background:rgba(42,49,66,.95);border:1px solid #46506b;border-radius:16px;padding:12px;box-shadow:0 8px 22px rgba(0,0,0,.2)}
+  .board-wrap{overflow:auto}
+  .board{display:grid;grid-template-columns:repeat(15,42px);grid-template-rows:repeat(15,42px);gap:2px;justify-content:center;min-width:max-content}
+  .cell{width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;font-weight:700;color:#fff;user-select:none}
+  .cell.empty{background:#53617c;cursor:pointer}
+  .cell.empty:hover{filter:brightness(1.08)}
+  .cell.dw{background:var(--dw)} .cell.tw{background:var(--tw)} .cell.dl{background:var(--dl)} .cell.tl{background:var(--tl)} .cell.center{background:var(--center);color:#2c2411}
+  .cell .bonus{font-size:10px;opacity:.95;letter-spacing:.3px;text-align:center;line-height:1.05}
+  .tile{width:100%;height:100%;border-radius:8px;background:linear-gradient(180deg,var(--tile),var(--tile2));color:#2d2416;display:flex;align-items:center;justify-content:center;position:relative;border:1px solid #c79648;box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
+  .tile.pending{outline:3px solid #6de0ff;outline-offset:-3px}
+  .tile.bot-last{outline:3px solid #9dff9b;outline-offset:-3px}
+  .tile.selected{outline:3px solid #fff;outline-offset:-3px}
+  .letter{font-size:22px;font-weight:800;line-height:1}
+  .value{position:absolute;bottom:3px;right:4px;font-size:10px;font-weight:700}
+  .rack{display:flex;gap:8px;flex-wrap:wrap;min-height:56px;margin-top:8px}
+  .rack-slot{width:50px;height:50px;border-radius:10px;background:#46516b;padding:2px}
+  .rack .tile{cursor:pointer}
+  .sidebar-section{margin-bottom:14px}
+  .scorebox{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .score{background:#39445b;border-radius:12px;padding:10px}
+  .score .label{font-size:12px;color:var(--muted)}
+  .score .num{font-size:28px;font-weight:800;margin-top:4px}
+  .tag{display:inline-block;background:#405171;border:1px solid #6984b3;border-radius:999px;padding:5px 10px;font-size:12px;margin-top:8px}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .controls .btn.full{grid-column:1/-1}
+  .status{background:#202838;border-radius:12px;padding:10px;min-height:74px;line-height:1.35;color:#eef3ff}
+  .small{font-size:12px;color:var(--muted)}
+  .overlay{position:fixed;inset:0;background:rgba(10,14,20,.78);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal{width:min(520px,100%);background:#263044;border:1px solid #566685;border-radius:18px;padding:20px}
+  .difficulty-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+  .diff{background:#36425a;border:1px solid #536685;border-radius:14px;padding:14px;cursor:pointer;text-align:center}
+  .diff.active{outline:3px solid #7fd6ff}
+  .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px}
+  .legend div{padding:8px;border-radius:10px;text-align:center}
+  .message-log{max-height:200px;overflow:auto;background:#202838;border-radius:12px;padding:10px}
+  .message-log div{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .message-log div:last-child{border-bottom:0}
+  .checker-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .checker-row input{flex:1;min-width:0;background:#202838;color:var(--text);border:1px solid #4c5774;border-radius:10px;padding:10px 12px;font-size:14px}
+  .checker-result{background:#202838;border-radius:12px;padding:10px;min-height:58px;line-height:1.35}
+  .checker-result.good{outline:2px solid rgba(132,224,166,.45)}
+  .checker-result.bad{outline:2px solid rgba(255,155,155,.45)}
+  @media (max-width:1100px){.layout{grid-template-columns:1fr}}
+  @media (max-width:650px){.board{grid-template-columns:repeat(15,32px);grid-template-rows:repeat(15,32px)}.cell{width:32px;height:32px}.cell .bonus{font-size:8px}.letter{font-size:16px}.rack-slot{width:42px;height:42px}.title{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="title">Scrabble-Style Duel</div>
+      <div class="subtitle">Single-file word game with online dictionary fallback, board bonuses, 7-tile racks, and bot difficulty.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" id="newGameTop">New Game</button>
+      <button class="btn" id="howBtn">How to Play</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="board-wrap"><div class="board" id="board"></div></div>
+      <div style="margin-top:12px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">
+        <div>
+          <div style="font-weight:700">Your Rack</div>
+          <div class="small">Click a tile, then click the board. Click a newly placed tile to return it to your rack.</div>
+          <div class="rack" id="rack"></div>
+        </div>
+        <div class="tag" id="tilesLeftTag">Tiles left: 0</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="sidebar-section">
+        <div class="scorebox">
+          <div class="score"><div class="label">You</div><div class="num" id="playerScore">0</div></div>
+          <div class="score"><div class="label">Bot</div><div class="num" id="botScore">0</div></div>
+        </div>
+        <div class="tag" id="difficultyTag">Difficulty: Medium</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div style="font-weight:700;margin-bottom:8px">Turn</div>
+        <div class="status" id="status">Choose a difficulty and start a game.</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="controls">
+          <button class="btn good" id="submitBtn">Submit Move</button>
+          <button class="btn" id="recallBtn">Recall Tiles</button>
+          <button class="btn" id="shuffleBtn">Shuffle Rack</button>
+          <button class="btn warn" id="passBtn">Pass Turn</button>
+          <button class="btn full primary" id="newGameBtn">Start / Restart</button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div style="font-weight:700;margin-bottom:8px">Bonus Legend</div>
+        <div class="legend">
+          <div style="background:var(--tw)">TW</div>
+          <div style="background:var(--dw)">DW</div>
+          <div style="background:var(--center);color:#2c2411">★</div>
+          <div style="background:var(--tl)">TL</div>
+          <div style="background:var(--dl)">DL</div>
+          <div style="background:#53617c">Normal</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div style="font-weight:700;margin-bottom:8px">Dictionary</div>
+        <div class="status" id="dictionaryStatus">Built-in compact dictionary loaded.</div>
+        <div class="tag" id="dictionaryTag">Dictionary: Built-in compact</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div style="font-weight:700;margin-bottom:8px">Word Checker</div>
+        <div class="checker-row" style="margin-bottom:8px">
+          <input id="checkerInput" type="text" maxlength="15" placeholder="Type a word" autocomplete="off" spellcheck="false" />
+          <button class="btn" id="checkerBtn">Check</button>
+        </div>
+        <div class="checker-result" id="checkerResult">Enter a word to see whether it exists in the current dictionary.</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div style="font-weight:700;margin-bottom:8px">Game Log</div>
+        <div class="message-log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="startOverlay">
+  <div class="modal">
+    <h2 style="margin-bottom:8px">Start a New Match</h2>
+    <p class="small">Pick how strong the bot should be. Easy takes weaker moves, Medium tries decent scoring plays, Hard searches for stronger plays more often.</p>
+    <div class="difficulty-grid" id="difficultyGrid">
+      <div class="diff" data-difficulty="easy"><h3>Easy</h3><p class="small" style="margin-top:6px">Loose, simpler plays</p></div>
+      <div class="diff active" data-difficulty="medium"><h3>Medium</h3><p class="small" style="margin-top:6px">Balanced</p></div>
+      <div class="diff" data-difficulty="hard"><h3>Hard</h3><p class="small" style="margin-top:6px">Best available move</p></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+      <div class="small">This version starts with a built-in dictionary, then tries to upgrade to an online word list if one is reachable.</div>
+      <button class="btn primary" id="beginBtn">Begin Game</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SIZE = 15;
+  const CENTER = 7;
+  const RACK_SIZE = 7;
+  const LETTER_SCORES = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10};
+  const DISTRIBUTION = {A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1};
+  const BONUS = {};
+  function setBonus(type, coords){ coords.forEach(([r,c]) => BONUS[`${r},${c}`] = type); }
+  setBonus('TW', [[0,0],[0,7],[0,14],[7,0],[7,14],[14,0],[14,7],[14,14]]);
+  setBonus('DW', [[1,1],[2,2],[3,3],[4,4],[7,7],[10,10],[11,11],[12,12],[13,13],[1,13],[2,12],[3,11],[4,10],[10,4],[11,3],[12,2],[13,1]]);
+  setBonus('TL', [[1,5],[1,9],[5,1],[5,5],[5,9],[5,13],[9,1],[9,5],[9,9],[9,13],[13,5],[13,9]]);
+  setBonus('DL', [[0,3],[0,11],[2,6],[2,8],[3,0],[3,7],[3,14],[6,2],[6,6],[6,8],[6,12],[7,3],[7,11],[8,2],[8,6],[8,8],[8,12],[11,0],[11,7],[11,14],[12,6],[12,8],[14,3],[14,11]]);
+
+  const DICTIONARY_TEXT = `
+A I
+AN AM AS AT AX AD AG AH AL AR AW AY
+BE BY DO GO HE HI IF IN IS IT ME MY NO OF OH ON OR OX TO UP US WE
+ACE ACT ADD ADO ADS AGE AGO AID AIL AIM AIR ALE ALL ALP AND ANT ANY APE APT ARC ARE ARK ARM ART ASH ASK ATE AUK AVE AWE AWL AXE BAD BAG BAN BAR BAT BAY BED BEE BEG BELT BEN BET BID BIG BIN BIT BOA BOB BOG BOIL BOLD BONE BOOK BOOM BOOT BOP BOW BOX BOY BRA BUG BUN BUS BUT BUY CAB CAN CAP CAR CAT CAW COB COD COG COL CON COO COP COT COW COY CRY CUB CUP CUT DAB DAD DAM DAY DEN DEW DID DIE DIG DIM DIN DIP DOE DOG DON DOT DRY DUB DUD DUE DUG EAR EAT EEL EGG EGO ELF ELK ELM END ERA ERR EVE EWE EYE FAR FAT FAX FED FEE FEW FIG FIN FIR FIT FIX FLY FOE FOG FOR FOX FRO FUN FUR GAG GAL GAP GAS GEE GEL GEM GET GIG GIN GOD GOT GUM GUN GUT GUY GYM HAD HAM HAS HAT HAY HEM HEN HER HID HIM HIP HIT HOG HOP HOT HOW HUB HUE HUG HUT ICE ILL INK INN ION ITS IVY JAM JAR JAW JET JIG JOB JOG JOY JUG KEY KID KIN KIT LAB LAG LAP LAW LAY LED LEG LET LID LIE LIP LIT LOG LOT LOW MAD MAN MAP MAT MAY MEN MET MID MILK MIX MOB MOD MOM MOP MUD MUG NAG NAP NET NEW NOD NOR NOT NOW NUN NUT OAK OAR ODD ODE OFF OIL OLD ONE OPT ORE OUR OUT OVA OWE OWL OWN PAD PAL PAN PAR PAT PAW PAY PEA PEG PEN PET PIE PIG PIN PIT POD POP POT PRO PRY PUB PUG PUN PUP PUT RAG RAM RAN RAP RAT RAW RAY RED RIB RID RIG RIM RIP ROB ROD ROGUE ROT ROW RUB RUG RUM RUN RUT RYE SAD SAG SAP SAT SAW SAY SEA SEE SET SEW SHE SHY SIN SIP SIR SIT SIX SKI SKY SLY SOB SOD SON SOP SOW SOY SPA SPY SUB SUE SUM SUN SUP TAB TAG TAN TAP TAR TAX TEA TEN THE TIE TIN TIP TOE TOM TON TOO TOP TOY TRY TUB TUG TWO USE VAN VAT VET VEX VIA VIE WAR WAS WAX WAY WEB WED WET WHO WHY WIN WIT WOK WON WOO WOW YAK YAM YAP YAW YEA YES YET YOU ZAP ZIP ZOO
+ABLE ACID ACNE ACORN ACRE ACTOR ACUTE ADAPT ADDED ADDER ADMIT ADOBE ADOPT ADORE ADULT AFTER AGAIN AGATE AGENT AGILE AGLOW AGONY AGREE AHEAD AIDER AISLE ALBUM ALERT ALGAE ALIBI ALIEN ALIGN ALIKE ALIVE ALLOW ALLOY ALOFT ALONE ALONG ALOUD ALPHA ALTAR ALTER AMBER AMEND AMONG ANGEL ANGER ANGLE ANGRY ANKLE ANODE ANTIC ANVIL APART APPLE APPLY APRON ARBOR ARENA ARGUE ARISE ARMOR AROMA ARRAY ARROW ASIDE ASSET ATLAS ATTIC AUDIO AUDIT AVOID AWARE BADGE BADLY BAKER BALER BALMY BANJO BASIC BASIL BASIN BASIS BATCH BATHS BATON BEACON BEADS BEARD BEAST BEGIN BEGUN BEING BELLY BELOW BENCH BERRY BIRTH BISON BLACK BLADE BLAME BLAND BLANK BLAZE BLEND BLESS BLIMP BLIND BLINK BLOCK BLOOM BLOWN BLUER BLUFF BLUNT BLURT BOARD BOAST BOGUS BONEY BOOST BOOTH BOOTS BRAIN BRAKE BRAND BRAVE BREAD BREAK BREED BRIAR BRICK BRIDE BRIEF BRING BROAD BROKE BROOD BROOM BROWN BRUSH BUILD BUILT BUNCH BURST BUYER CABLE CACHE CADET CANDY CANOE CANON CAPER CARGO CAROL CARRY CARVE CATCH CAUSE CEDAR CHAIN CHAIR CHALK CHAMP CHANT CHAOS CHARM CHART CHASE CHEAP CHECK CHEEK CHEER CHESS CHEST CHIEF CHILD CHILI CHILL CHIME CHINA CHOIR CHOKE CHORD CHORE CHOSE CIDER CIGAR CINCH CIRCA CIVIC CLAIM CLAMP CLASH CLASS CLEAN CLEAR CLERK CLICK CLIFF CLIMB CLING CLOCK CLONE CLOSE CLOUD CLOVE COACH COAST COBRA COLOR COMET COMIC CORAL COUCH COUGH COULD COUNT COURT COVEN COVER CRAFT CRANE CRASH CRAZY CREAM CREEK CREST CRIME CRISP CROWD CROWN CRUDE CRUEL CRUMB CRUSH CURVE CYCLE DAILY DAIRY DANCE DANDY DATED DEALT DEATH DEBIT DEBUG DECAL DECAY DECKS DECOR DELAY DELTA DEMON DENIM DENSE DEPOT DEPTH DIARY DICER DIGIT DINER DINGO DIODE DIRTY DISCO DIVER DIZZY DOING DONOR DOUBT DOZEN DRAFT DRAIN DRAMA DRAWN DREAM DRESS DRIED DRILL DRINK DRIVE DROOP DROVE DRUID DRYER EAGER EAGLE EARLY EARTH EASEL EATEN EBONY EDITS EIGHT ELBOW ELDER ELECT ELITE EMBER EMPTY ENACT ENDOR ENEMY ENJOY ENTER ENTRY EPOCH EQUAL EQUIP ERASE ERROR ESSAY ETHIC EVENT EVERY EXACT EXALT EXCEL EXIST EXTRA FABLE FACET FAIRY FAITH FALSE FANCY FARCE FATAL FAULT FAVOR FEAST FENCE FERRY FEVER FIBER FIELD FIEND FIFTH FIFTY FIGHT FILER FINAL FINCH FINER FIRST FISHY FIXER FJORD FLAIR FLAKE FLAME FLANK FLARE FLASH FLEET FLESH FLICK FLINT FLOAT FLOOD FLOOR FLOUR FLUID FOCUS FORCE FORGE FORTH FORTY FORUM FOUND FRAME FRAUD FRESH FRIED FRONT FROST FRUIT FUDGE FULLY FUNNY GIANT GIVEN GLADE GLAND GLASS GLAZE GLEAM GLOBE GLOOM GLORY GLOVE GNOME GOING GRACE GRADE GRAIN GRAND GRANT GRAPE GRAPH GRASP GRASS GRATE GREAT GREEN GRIPE GROSS GROUP GROVE GROWN GUARD GUEST GUIDE GUILD GUILT HABIT HAIRY HANDY HAPPY HARBOR HASTE HATCH HATER HAVEN HAZEL HEART HEAVY HEDGE HELIX HELLO HENCE HERON HOBBY HONEY HONOR HORSE HOTEL HOUSE HUMAN HUMOR HURRY IDEAL IDIOM IMAGE IMPLY INDEX INNER INPUT IRONY ISLET IVORY JELLY JOLLY JUDGE JUICE JUMBO KNACK KNIFE KNOCK KNOWN LABEL LABOR LARGE LASER LATER LATHE LAUGH LAYER LEACH LEAFY LEARN LEASE LEAST LEDGE LEGAL LEMON LEMUR LEVEL LEVER LIGHT LIKEN LIMIT LINEN LIVER LOBBY LOCAL LODGE LOGIC LONER LOOSE LORRY LOSER LOVER LOWER LOYAL LUCKY LUNCH LUNAR LYRIC MAGIC MAJOR MAKER MANGO MANOR MAPLE MARCH MARSH MATCH MAYBE MAYOR MEDAL MEDIA MERCY MERIT METAL METER MICRO MIGHT MINER MINOR MINUS MIXER MODEL MODEM MONEY MONTH MORAL MOTOR MOUNT MOUSE MOUTH MOVED MOVER MOVIE MUSIC NAKED NARROW NASTY NAVAL NEEDY NEIGH NERVE NEVER NEWER NEXUS NICER NIGHT NINJA NOBLE NOISE NORTH NOTED NOVEL NUDGE NURSE OASIS OCCUR OCEAN OFFER OFTEN OLIVE OMEGA ONION OPERA OPTIC ORDER OTHER OUGHT OUNCE OUTER OVALS OWNER OXIDE PANEL PANIC PAPER PARTY PASTA PATCH PATIO PAUSE PEACE PEACH PEARL PEDAL PENNY PHASE PHONE PHOTO PIANO PIERCE PILOT PINCH PIPER PITCH PIVOT PLACE PLAIN PLANE PLANT PLATE PLAZA PLEAD PLIER PLOTTY PLUCK PLUMB PLUME POINT POLAR POLKA PORCH POWER PRESS PRICE PRIDE PRIME PRINT PRIOR PRISM PRIZE PROBE PROOF PROUD PROVE PULSE PUPIL PURER QUEEN QUERY QUEST QUICK QUIET QUITE QUOTA QUOTE RACER RADIO RAISE RALLY RANCH RANGE RAPID RARER RATIO REACH REACT READY REALM REBEL REFER REIGN RELAX RELAY REMIX RENEW REPLY RESET RHINO RIDER RIDGE RIFLE RIGHT RIGID RINSE RIPEN RIVER ROBIN ROCKY ROGUE ROMAN ROOST ROUGH ROUND ROUTE ROYAL RUDER RULER RURAL SALAD SALON SALTY SANER SAUCE SCALE SCALP SCENE SCENT SCORE SCOUT SCRAP SCREW SEEDY SENSE SERVE SEVEN SHADE SHAKE SHALL SHAME SHAPE SHARE SHARK SHARP SHAVE SHEAR SHEET SHELF SHELL SHIFT SHINE SHINY SHIRE SHOCK SHOOT SHORE SHORT SHOUT SHOWN SHRUB SIEGE SIGHT SILKY SINCE SINEW SIREN SIXTH SKATE SKILL SKIRT SKULL SLACK SLATE SLEEP SLEET SLICE SLICK SLIDE SLOPE SMALL SMART SMILE SMOKE SNAKE SNEAK SNORE SOLAR SOLID SOLVE SONAR SORRY SOUND SOUTH SPACE SPADE SPARE SPARK SPEAK SPEED SPELL SPEND SPICE SPIKE SPILL SPINE SPLIT SPOIL SPOKE SPORT SPRAY SPREE SPRIG SQUAD STACK STAFF STAGE STAIN STAIR STAKE STALE STAMP STAND STARE STARK START STASH STATE STEAD STEAK STEAL STEAM STEEL STEEP STEER STICK STILL STING STOCK STONE STOOD STORM STORY STOUT STRAP STRAW STRIP STUCK STUDY STUFF STYLE SUGAR SUITE SUNNY SUPER SURER SWAMP SWEAR SWEAT SWEEP SWEET SWELL SWIFT SWING SWIRL SWORD TABLE TAKEN TAKER TALON TASTE TEACH TEMPO THANK THEFT THEIR THEME THERE THICK THIEF THING THINK THIRD THORN THOSE THREE THREW THROW THUMB TIGER TIGHT TIMER TIRED TITLE TOAST TODAY TOKEN TONIC TOOTH TOPAZ TOPIC TORCH TOTAL TOUCH TOUGH TOWER TOXIC TRACE TRACK TRADE TRAIL TRAIN TRAIT TRASH TREAD TREAT TREND TRIAL TRIBE TRICK TRIED TRIPE TROOP TROUT TRUCK TRULY TRUNK TRUST TRUTH TULIP TUMOR TUNIC TURBO TWICE TYING ULTRA UNCLE UNDER UNDO UNFED UNION UNITY UNTIL UPPER UPSET URBAN USAGE USHER USING USUAL VAGUE VALID VALUE VALVE VAPOR VAULT VENOM VENUE VERGE VERSE VIDEO VIGOR VINYL VIOLA VIRAL VIRUS VISIT VISTA VITAL VIVID VOCAL VOICE VOTER WACKY WAGON WAIST WAIVE WATER WEARY WEAVE WEDGE WEIGH WEIRD WHALE WHEAT WHEEL WHERE WHICH WHILE WHINE WHITE WHOLE WHOSE WIDEN WIDER WIELD WISER WITCH WOMAN WOMEN WORLD WORRY WORSE WORST WORTH WOULD WOUND WOVEN WRATH WRECK WRITE WRONG WROTE YEARN YEAST YIELD YOUNG YOUTH ZEBRA ZESTY ZONED
+ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFORD AFRAID AGAINST AIRPORT ALMOST ALREADY ALWAYS AMOUNT ANCIENT ANIMAL ANNUAL ANSWER ANYBODY APPEAL APPEAR AROUND ARRANGE ARRIVAL ARTICLE ARTIST ASPECT ATTACK AUTHOR AUTUMN AVENUE AWAKEN BACKING BALANCE BARRIER BATTLE BEAUTY BECOME BEFORE BEHALF BEHAVE BEHIND BELIEVE BELONG BENEFIT BESIDE BETRAY BETTER BEYOND BINARY BISHOP BORDER BOTTLE BOTTOM BRANCH BREATH BREEZE BRIDGE BRIGHT BROTHER BUDGET BURDEN BUREAU BURGER BUTTON BUYING CAMERA CANNOT CARBON CAREFUL CAREER CARPET CASTLE CASUAL CAUSES CENTER CHANCE CHANGE CHARGE CHARTER CHICKEN CHOICE CHOOSE CHRONIC CIRCUIT CITIZEN CLASSIC CLIMATE CLOTHES COLLECT COLLEGE COMBINE COMFORT COMMAND COMMENT COMPACT COMPANY COMPARE COMPETE COMPLEX CONCEPT CONCERN CONDUCT CONFIRM CONNECT CONSENT CONSIST CONTACT CONTAIN CONTENT CONTEST CONTEXT CONTROL COOKING CORRECT COTTON COUNTRY COURAGE COURSE CREATE CREATOR CREDIT CRICKET CRISIS CUSTOM CUTTING DAMAGE DEALER DEBATE DECISION DEFAULT DELIVER DENSITY DEPOSIT DESERVE DESIGN DESPITE DESTINY DETAIL DEVELOP DIAMOND DIGITAL DINNER DIRECT DISCUSS DISEASE DISMISS DISPLAY DISTANT DISTRICT DIVIDED DOCTOR DOLLAR DOMAIN DOUBLE DRAWING DRIVING DYNAMIC EASILY EASTERN ECONOMY EDITION ELDERLY ELEMENT EMBRACE EMERGE EMOTION EMPLOYER ENABLED ENDLESS ENFORCE ENGLISH ENJOYED ENORMOUS ENOUGH ENSURE ENTERED ENTIRE EPISODE EQUALLY ESCAPE ESSENCE ESTATE ETHICAL EVENING EXACTLY EXAMPLE EXHIBIT EXPENSE EXPLAIN EXPLORE EXPRESS EXTREME FACTORY FAILURE FANTASY FARMING FASHION FEATURE FEDERAL FEELING FICTION FILLING FINANCE FINDING FINGER FINISH FIREMAN FISHING FITNESS FLORIST FLYINGLY FOREVER FORGET FORWARD FOUNDER FREEDOM FRIENDLY FURTHER GALLERY GARBAGE GARDENING GENERAL GENTLE GESTURE GIGABIT GLIMPSE GOLDEN GRABBER GRADUAL GRAVITY GROCERY GROWING HALLWAY HANDLER HAPPILY HARMONY HEARING HEAVILY HELPFUL HIGHWAY HIMSELF HISTORY HOLDING HOLIDAY HONESTY HOUSING HOWEVER HUNDRED HUSBAND HYDRATE ILLEGAL IMAGINE IMPACTS IMPROVE INCLUDE INITIAL INJURED INSECT INSIGHT INSPIRE INSTALL INSTEAD INTENSE INTEREST INVOLVE ISOLATE ITSELF JOURNEY JUSTICE KITCHEN LANGUAGE LEADING LEAGUE LEATHER LECTURE LEGENDS LIBERAL LIBRARY LICENSE LIMITED LOGICAL MACHINE MANAGER MANNERLY MARKET MASSIVE MEANING MEASURE MEDICAL MEETING MENTION MESSAGE MILLION MINERAL MINIMUM MISTAKE MONITOR MORNING MYSTERY NATURAL NEARBY NERVOUS NETWORK NOTABLE NOTHING NUCLEAR OBJECTS OBSERVE OBVIOUS OFFICER OPENING OPERATE OPINION ORANGEY ORGANIC OUTCOME OUTDOOR OUTSIDE PACKAGE PAINTING PARENTS PASSAGE PATIENT PATTERN PAYMENT PENSION PERHAPS PERFORM PHYSICS PICTURE PLANNED PLASTIC PLATFORM PLEASURE POCKETS POPULAR PORTION POVERTY PRECISE PREDICT PREFER PREPARE PRESENT PREVENT PRIMARY PRINTER PRIVATE PROBABLY PROBLEM PROCESS PROFILE PROGRAM PROGRESS PROJECT PROMISE PROTECT PROTEST PROVIDE PURPOSE QUALIFY QUALITY QUANTUM QUARTER RADICAL RAILWAY RANDOMLY REACTION REALITY REALIZE RECEIVE RECOVER REDUCED REFLECT REGULAR RELATED RELIEVE REMAINS REMEMBER REMOVAL REPLACE REQUEST REQUIRE RESCUE RESERVE RESOLVE RESPECT RESPOND RESTORE RETIRED REVEALS REVENUE REVERSE ROUTINE RUNNING SCIENCE SECTION SECURED SEEKING SERIOUS SERVICE SEVENTH SEVERAL SHADOWY SHARING SHOULDER SIGNALS SILENCE SIMILAR SINCERE SITTING SKILLED SOCIETY SOMEONE SPECIAL SPIRITUAL STADIUM STANDARD STARTED STATION STORAGE STRANGE STRETCH STUDIO SUBJECT SUCCESS SUPPORT SUPPOSE SURFACE SURGERY SURVIVE TEACHER TELLING TENSION THEATER THOUGHT THREATEN THROUGH TONIGHT TOURIST TOWARDS TRAFFIC TRANSIT TRAVELER TREASURE TYPICAL UNIFORM UNKNOWN UNTAMED UPWARDS USELESS USUALLY VACUUM VARIETY VEHICLE VERSION VICTORY VILLAGE VINTAGE VISIBLE VISITOR WALKING WANTING WARMING WARNING WASHING WEAPONRY WEATHER WEDDING WEEKEND WELCOME WESTERN WHEREVER WITHOUT WORKING WRITING YESTERDAY`;
+
+  const BUILTIN_WORDS = Array.from(new Set(DICTIONARY_TEXT.trim().split(/\s+/).map(w => w.toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length >= 2 && w.length <= 15)));
+  const ONLINE_DICTIONARY_SOURCES = [
+    { name: 'NSWL 2020', url: 'https://raw.githubusercontent.com/scrabblewords/scrabblewords/main/words/North-American/NSWL2020.txt' },
+    { name: 'Common Words 5000', url: 'https://raw.githubusercontent.com/MichaelWehar/Public-Domain-Word-Lists/master/5000-more-common.txt' }
+  ];
+  let WORDS = BUILTIN_WORDS.slice();
+  let DICT = new Set(WORDS);
+  let dictionarySource = 'Built-in compact';
+  let dictionaryIsOnline = false;
+
+  const state = {
+    difficulty: 'medium', board: [], bag: [], playerRack: [], botRack: [], pending: [], selectedRackIndex: null,
+    playerScore: 0, botScore: 0, currentTurn: 'player', gameStarted: false, passesInRow: 0, firstMove: true, botThinking: false,
+    log: [], botLastMovePositions: []
+  };
+
+  const boardEl = document.getElementById('board');
+  const rackEl = document.getElementById('rack');
+  const statusEl = document.getElementById('status');
+  const logEl = document.getElementById('log');
+  const playerScoreEl = document.getElementById('playerScore');
+  const botScoreEl = document.getElementById('botScore');
+  const difficultyTag = document.getElementById('difficultyTag');
+  const dictionaryTag = document.getElementById('dictionaryTag');
+  const dictionaryStatus = document.getElementById('dictionaryStatus');
+  const checkerInput = document.getElementById('checkerInput');
+  const checkerBtn = document.getElementById('checkerBtn');
+  const checkerResult = document.getElementById('checkerResult');
+
+  function setDictionaryUI(statusText){
+    dictionaryTag.textContent = `Dictionary: ${dictionarySource}`;
+    dictionaryStatus.innerHTML = `${statusText}<br><span class="small">${WORDS.length.toLocaleString()} words currently loaded.</span>`;
+  }
+
+  function parseWordList(raw){
+    return Array.from(new Set(raw.split(/\s+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length >= 2 && w.length <= 15)));
+  }
+
+  async function fetchTextWithTimeout(url, timeoutMs = 7000){
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {signal: controller.signal, mode: 'cors', cache: 'no-store'});
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.text();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function initializeDictionary(){
+    setDictionaryUI('Built-in dictionary ready. Checking for a larger online dictionary...');
+    for (const source of ONLINE_DICTIONARY_SOURCES) {
+      try {
+        const raw = await fetchTextWithTimeout(source.url);
+        const parsed = parseWordList(raw);
+        if (parsed.length > WORDS.length) {
+          WORDS = parsed;
+          DICT = new Set(parsed);
+          dictionarySource = source.name;
+          dictionaryIsOnline = true;
+          setDictionaryUI(`Online dictionary loaded successfully from <b>${source.name}</b>.`);
+          logMessage(`Dictionary upgraded to <b>${source.name}</b> (${WORDS.length.toLocaleString()} words).`);
+          return;
+        }
+      } catch (err) {
+        // try next source
+      }
+    }
+    dictionarySource = 'Built-in compact';
+    dictionaryIsOnline = false;
+    setDictionaryUI('Online dictionary unavailable, using the built-in compact dictionary.');
+    logMessage('Online dictionary unavailable. Using the built-in compact dictionary.');
+  }
+
+  function checkLookupWord(){
+    const raw = checkerInput.value.trim().toUpperCase();
+    checkerResult.classList.remove('good','bad');
+    if (!raw) {
+      checkerResult.textContent = 'Enter a word to see whether it exists in the current dictionary.';
+      return;
+    }
+    if (!/^[A-Z]+$/.test(raw)) {
+      checkerResult.textContent = 'Use letters only.';
+      checkerResult.classList.add('bad');
+      return;
+    }
+    if (raw.length < 2 || raw.length > 15) {
+      checkerResult.textContent = 'The checker only accepts words from 2 to 15 letters long.';
+      checkerResult.classList.add('bad');
+      return;
+    }
+    const found = DICT.has(raw);
+    checkerResult.innerHTML = found
+      ? `<b>${raw}</b> is in the dictionary.<br><span class="small">Source: ${dictionarySource}</span>`
+      : `<b>${raw}</b> is not in the dictionary.<br><span class="small">Source: ${dictionarySource}</span>`;
+    checkerResult.classList.add(found ? 'good' : 'bad');
+  }
+  const tilesLeftTag = document.getElementById('tilesLeftTag');
+  const overlay = document.getElementById('startOverlay');
+
+  function createEmptyBoard(){
+    return Array.from({length: SIZE}, () => Array.from({length: SIZE}, () => null));
+  }
+
+  function buildBag(){
+    const bag = [];
+    for (const [letter, count] of Object.entries(DISTRIBUTION)) {
+      for (let i = 0; i < count; i++) bag.push(letter);
+    }
+    shuffleArray(bag);
+    return bag;
+  }
+
+  function shuffleArray(arr){
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  function drawTiles(rack, count){
+    while (rack.length < RACK_SIZE && state.bag.length && count > 0) {
+      rack.push(state.bag.pop());
+      count--;
+    }
+  }
+
+  function logMessage(msg){
+    state.log.unshift(msg);
+    state.log = state.log.slice(0, 28);
+    renderLog();
+  }
+
+  function renderLog(){
+    logEl.innerHTML = state.log.map(line => `<div>${line}</div>`).join('');
+  }
+
+  function setStatus(msg){ statusEl.innerHTML = msg; }
+
+  function premiumFor(r,c){ return BONUS[`${r},${c}`] || ''; }
+  function premiumLabel(type){ return type === 'TW' ? 'TW' : type === 'DW' ? 'DW' : type === 'TL' ? 'TL' : type === 'DL' ? 'DL' : (type === '★' ? '★' : ''); }
+
+  function renderBoard(){
+    boardEl.innerHTML = '';
+    const pendingMap = new Map(state.pending.map(p => [`${p.r},${p.c}`, p]));
+    const botLastSet = new Set(state.botLastMovePositions.map(p => `${p.r},${p.c}`));
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const cell = document.createElement('div');
+        const key = `${r},${c}`;
+        const boardTile = state.board[r][c];
+        const pendingTile = pendingMap.get(key);
+        let bonus = premiumFor(r,c);
+        if (r === CENTER && c === CENTER && !boardTile && !pendingTile) bonus = '★';
+        cell.className = `cell ${boardTile || pendingTile ? '' : 'empty'} ${bonus === '★' ? 'center' : bonus.toLowerCase()}`;
+        cell.dataset.r = r; cell.dataset.c = c;
+
+        if (boardTile || pendingTile) {
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          if (pendingTile) tile.classList.add('pending');
+          if (boardTile && botLastSet.has(key)) tile.classList.add('bot-last');
+          tile.innerHTML = `<div class="letter">${pendingTile ? pendingTile.letter : boardTile}</div><div class="value">${LETTER_SCORES[pendingTile ? pendingTile.letter : boardTile] || 0}</div>`;
+          cell.appendChild(tile);
+        } else {
+          cell.innerHTML = `<div class="bonus">${premiumLabel(bonus)}</div>`;
+        }
+        cell.addEventListener('click', onBoardClick);
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function renderRack(){
+    rackEl.innerHTML = '';
+    state.playerRack.forEach((letter, i) => {
+      const slot = document.createElement('div');
+      slot.className = 'rack-slot';
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      if (state.selectedRackIndex === i) tile.classList.add('selected');
+      tile.innerHTML = `<div class="letter">${letter}</div><div class="value">${LETTER_SCORES[letter] || 0}</div>`;
+      tile.addEventListener('click', () => {
+        if (state.currentTurn !== 'player' || state.botThinking) return;
+        state.selectedRackIndex = state.selectedRackIndex === i ? null : i;
+        renderRack();
+      });
+      slot.appendChild(tile);
+      rackEl.appendChild(slot);
+    });
+    tilesLeftTag.textContent = `Tiles left: ${state.bag.length}`;
+  }
+
+  function updateScoreUI(){
+    playerScoreEl.textContent = state.playerScore;
+    botScoreEl.textContent = state.botScore;
+    difficultyTag.textContent = `Difficulty: ${capitalize(state.difficulty)}`;
+  }
+
+  function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function newGame(){
+    state.board = createEmptyBoard();
+    state.bag = buildBag();
+    state.playerRack = [];
+    state.botRack = [];
+    state.pending = [];
+    state.selectedRackIndex = null;
+    state.playerScore = 0;
+    state.botScore = 0;
+    state.currentTurn = 'player';
+    state.gameStarted = true;
+    state.passesInRow = 0;
+    state.firstMove = true;
+    state.botThinking = false;
+    state.log = [];
+    state.botLastMovePositions = [];
+    drawTiles(state.playerRack, RACK_SIZE);
+    drawTiles(state.botRack, RACK_SIZE);
+    logMessage(`New ${capitalize(state.difficulty)} game started.`);
+    setStatus(`Your turn. Place a word through the center star.`);
+    renderAll();
+  }
+
+  function renderAll(){
+    renderBoard();
+    renderRack();
+    renderLog();
+    updateScoreUI();
+  }
+
+  function onBoardClick(e){
+    if (state.currentTurn !== 'player' || state.botThinking) return;
+    const cell = e.currentTarget;
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    const pendingIndex = state.pending.findIndex(p => p.r === r && p.c === c);
+    if (pendingIndex >= 0) {
+      const [tile] = state.pending.splice(pendingIndex, 1);
+      state.playerRack.push(tile.letter);
+      state.selectedRackIndex = null;
+      renderAll();
+      return;
+    }
+    if (state.board[r][c]) return;
+    if (state.selectedRackIndex == null) return;
+    const letter = state.playerRack.splice(state.selectedRackIndex, 1)[0];
+    state.pending.push({r, c, letter});
+    state.selectedRackIndex = null;
+    renderAll();
+  }
+
+  function recallTiles(){
+    if (!state.pending.length) return;
+    for (const p of state.pending) state.playerRack.push(p.letter);
+    state.pending = [];
+    state.selectedRackIndex = null;
+    renderAll();
+  }
+
+  function shuffleRack(){
+    shuffleArray(state.playerRack);
+    state.selectedRackIndex = null;
+    renderRack();
+  }
+
+  function countLetters(arr){
+    const m = Object.create(null);
+    arr.forEach(ch => m[ch] = (m[ch] || 0) + 1);
+    return m;
+  }
+
+  function inBounds(r,c){ return r >= 0 && r < SIZE && c >= 0 && c < SIZE; }
+
+  function collectWordWithPending(r, c, dr, dc, pendingMap){
+    let sr = r, sc = c;
+    while (inBounds(sr - dr, sc - dc) && (state.board[sr - dr][sc - dc] || pendingMap.has(`${sr-dr},${sc-dc}`))) {
+      sr -= dr; sc -= dc;
+    }
+    let word = '', positions = [];
+    let cr = sr, cc = sc;
+    while (inBounds(cr, cc) && (state.board[cr][cc] || pendingMap.has(`${cr},${cc}`))) {
+      const pending = pendingMap.get(`${cr},${cc}`);
+      word += pending ? pending.letter : state.board[cr][cc];
+      positions.push({r: cr, c: cc, isNew: !!pending, letter: pending ? pending.letter : state.board[cr][cc]});
+      cr += dr; cc += dc;
+    }
+    return {word, positions};
+  }
+
+  function validatePlayerMove(){
+    if (!state.pending.length) return {ok:false, reason:'Place at least one tile.'};
+    const pendingMap = new Map(state.pending.map(p => [`${p.r},${p.c}`, p]));
+    const rows = new Set(state.pending.map(p => p.r));
+    const cols = new Set(state.pending.map(p => p.c));
+    let orientations = [];
+    if (rows.size === 1) orientations.push('H');
+    if (cols.size === 1) orientations.push('V');
+    if (!orientations.length) return {ok:false, reason:'All newly placed tiles must be in one row or one column.'};
+
+    const tests = [];
+    for (const orientation of orientations) {
+      const dr = orientation === 'V' ? 1 : 0;
+      const dc = orientation === 'H' ? 1 : 0;
+      const first = state.pending[0];
+      const main = collectWordWithPending(first.r, first.c, dr, dc, pendingMap);
+      if (main.word.length < 2) continue;
+
+      // Make sure every pending tile lies on the built main word.
+      const posSet = new Set(main.positions.map(p => `${p.r},${p.c}`));
+      if (state.pending.some(p => !posSet.has(`${p.r},${p.c}`))) continue;
+
+      if (!DICT.has(main.word)) {
+        tests.push({ok:false, reason:`${main.word} is not in the current dictionary.`});
+        continue;
+      }
+      let touchesExisting = !state.firstMove ? false : true;
+      let touchesCenter = false;
+      let total = 0;
+      let mainWordMultiplier = 1;
+      let crossTotal = 0;
+      const placedSet = new Set(state.pending.map(p => `${p.r},${p.c}`));
+
+      for (const pos of main.positions) {
+        const key = `${pos.r},${pos.c}`;
+        const score = LETTER_SCORES[pos.letter] || 0;
+        if (pos.isNew) {
+          if (pos.r === CENTER && pos.c === CENTER) touchesCenter = true;
+          const premium = premiumFor(pos.r, pos.c);
+          let letterMul = 1, wordMul = 1;
+          if (premium === 'DL') letterMul = 2;
+          if (premium === 'TL') letterMul = 3;
+          if (premium === 'DW') wordMul = 2;
+          if (premium === 'TW') wordMul = 3;
+          total += score * letterMul;
+          mainWordMultiplier *= wordMul;
+
+          // Check whether this new tile touches old tiles.
+          for (const [nr,nc] of [[pos.r-1,pos.c],[pos.r+1,pos.c],[pos.r,pos.c-1],[pos.r,pos.c+1]]) {
+            if (inBounds(nr,nc) && state.board[nr][nc] && !placedSet.has(`${nr},${nc}`)) touchesExisting = true;
+          }
+
+          const cross = collectWordWithPending(pos.r, pos.c, dc, dr, pendingMap);
+          if (cross.word.length > 1) {
+            if (!DICT.has(cross.word)) {
+              tests.push({ok:false, reason:`Cross-word ${cross.word} is not in the current dictionary.`});
+              touchesExisting = null;
+              break;
+            }
+            let crossWordMultiplier = 1;
+            let thisCross = 0;
+            for (const cp of cross.positions) {
+              let val = LETTER_SCORES[cp.letter] || 0;
+              if (cp.isNew) {
+                const prem = premiumFor(cp.r, cp.c);
+                if (prem === 'DL') val *= 2;
+                if (prem === 'TL') val *= 3;
+                if (prem === 'DW') crossWordMultiplier *= 2;
+                if (prem === 'TW') crossWordMultiplier *= 3;
+              }
+              thisCross += val;
+            }
+            crossTotal += thisCross * crossWordMultiplier;
+          }
+        } else {
+          total += score;
+          touchesExisting = true;
+        }
+      }
+      if (touchesExisting === null) continue;
+      total = total * mainWordMultiplier + crossTotal;
+      if (state.pending.length === 7) total += 50;
+      if (state.firstMove && !touchesCenter) {
+        tests.push({ok:false, reason:'The first word must cover the center star.'});
+        continue;
+      }
+      if (!state.firstMove && !touchesExisting) {
+        tests.push({ok:false, reason:'Your play must connect to the existing board.'});
+        continue;
+      }
+      return {ok:true, word:main.word, score:total, positions:main.positions.filter(p => p.isNew)};
+    }
+    return tests[tests.length - 1] || {ok:false, reason:'Invalid placement.'};
+  }
+
+  function commitMove(positions, who){
+    positions.forEach(p => state.board[p.r][p.c] = p.letter);
+    state.botLastMovePositions = who === 'bot' ? positions.map(p => ({r:p.r,c:p.c})) : [];
+    state.firstMove = false;
+    state.passesInRow = 0;
+  }
+
+  function refillRack(rack){ drawTiles(rack, RACK_SIZE); }
+
+  function submitPlayerMove(){
+    if (state.currentTurn !== 'player' || state.botThinking) return;
+    const result = validatePlayerMove();
+    if (!result.ok) {
+      setStatus(result.reason);
+      return;
+    }
+    commitMove(state.pending, 'player');
+    state.playerScore += result.score;
+    logMessage(`You played <b>${result.word}</b> for ${result.score} point${result.score === 1 ? '' : 's'}.`);
+    state.pending = [];
+    refillRack(state.playerRack);
+    renderAll();
+    if (checkEndGame()) return;
+    state.currentTurn = 'bot';
+    setStatus(`Bot is thinking...`);
+    window.setTimeout(botTurn, 350);
+  }
+
+  function passTurn(){
+    if (!state.gameStarted || state.botThinking) return;
+    if (state.currentTurn === 'player') {
+      recallTiles();
+      state.passesInRow++;
+      logMessage('You passed.');
+      if (checkEndGame()) return;
+      state.currentTurn = 'bot';
+      setStatus('Bot is thinking...');
+      window.setTimeout(botTurn, 300);
+    }
+  }
+
+  function checkEndGame(){
+    if (!state.gameStarted) return false;
+    const emptyAndNoRack = state.bag.length === 0 && (state.playerRack.length === 0 || state.botRack.length === 0);
+    if (state.passesInRow >= 2 || emptyAndNoRack) {
+      let playerPenalty = state.playerRack.reduce((s,l) => s + (LETTER_SCORES[l] || 0), 0);
+      let botPenalty = state.botRack.reduce((s,l) => s + (LETTER_SCORES[l] || 0), 0);
+      state.playerScore -= playerPenalty;
+      state.botScore -= botPenalty;
+      if (state.playerRack.length === 0) state.playerScore += botPenalty;
+      if (state.botRack.length === 0) state.botScore += playerPenalty;
+      updateScoreUI();
+      state.gameStarted = false;
+      const winner = state.playerScore === state.botScore ? 'Draw game.' : (state.playerScore > state.botScore ? 'You win!' : 'Bot wins.');
+      setStatus(`${winner}<br><span class="small">Final score — You: ${state.playerScore}, Bot: ${state.botScore}</span>`);
+      logMessage(`<b>Game over.</b> ${winner}`);
+      return true;
+    }
+    return false;
+  }
+
+  function canConstructFromRack(word, rackCounts){
+    const counts = {...rackCounts};
+    for (const ch of word) {
+      if (!counts[ch]) return false;
+      counts[ch]--;
+    }
+    return true;
+  }
+
+  function evaluatePlacement(word, row, col, orientation, rack){
+    const dr = orientation === 'V' ? 1 : 0;
+    const dc = orientation === 'H' ? 1 : 0;
+    const rackCounts = countLetters(rack);
+    let usedLetters = [];
+    let positions = [];
+    let touchesExisting = false;
+    let touchesCenter = false;
+    if (!inBounds(row, col) || !inBounds(row + dr * (word.length - 1), col + dc * (word.length - 1))) return null;
+
+    // prevent illegally extending a word beyond its ends
+    if (inBounds(row - dr, col - dc) && state.board[row - dr][col - dc]) return null;
+    const endR = row + dr * (word.length - 1), endC = col + dc * (word.length - 1);
+    if (inBounds(endR + dr, endC + dc) && state.board[endR + dr][endC + dc]) return null;
+
+    for (let i = 0; i < word.length; i++) {
+      const r = row + dr * i, c = col + dc * i;
+      const boardLetter = state.board[r][c];
+      const wch = word[i];
+      if (boardLetter) {
+        if (boardLetter !== wch) return null;
+        touchesExisting = true;
+      } else {
+        if (!rackCounts[wch]) return null;
+        rackCounts[wch]--;
+        usedLetters.push(wch);
+        positions.push({r,c,letter:wch});
+        if (r === CENTER && c === CENTER) touchesCenter = true;
+      }
+    }
+    if (!positions.length) return null;
+
+    if (state.firstMove && !touchesCenter) return null;
+    let score = 0;
+    let wordMul = 1;
+    let crossTotal = 0;
+
+    // Connectivity and cross-word validation
+    const usedSet = new Set(positions.map(p => `${p.r},${p.c}`));
+    for (const pos of positions) {
+      const base = LETTER_SCORES[pos.letter] || 0;
+      const prem = premiumFor(pos.r,pos.c);
+      let letterMul = 1, thisWordMul = 1;
+      if (prem === 'DL') letterMul = 2;
+      if (prem === 'TL') letterMul = 3;
+      if (prem === 'DW') thisWordMul = 2;
+      if (prem === 'TW') thisWordMul = 3;
+      score += base * letterMul;
+      wordMul *= thisWordMul;
+
+      for (const [nr,nc] of [[pos.r-1,pos.c],[pos.r+1,pos.c],[pos.r,pos.c-1],[pos.r,pos.c+1]]) {
+        if (inBounds(nr,nc) && state.board[nr][nc] && !usedSet.has(`${nr},${nc}`)) touchesExisting = true;
+      }
+
+      const cross = gatherCrossWord(word, row, col, orientation, pos.r, pos.c);
+      if (cross.word.length > 1) {
+        if (!DICT.has(cross.word)) return null;
+        let cwMul = 1, cs = 0;
+        for (const cp of cross.positions) {
+          let val = LETTER_SCORES[cp.letter] || 0;
+          if (cp.r === pos.r && cp.c === pos.c) {
+            if (prem === 'DL') val *= 2;
+            if (prem === 'TL') val *= 3;
+            if (prem === 'DW') cwMul *= 2;
+            if (prem === 'TW') cwMul *= 3;
+          }
+          cs += val;
+        }
+        crossTotal += cs * cwMul;
+      }
+    }
+
+    for (let i = 0; i < word.length; i++) {
+      const r = row + dr * i, c = col + dc * i;
+      if (state.board[r][c]) score += LETTER_SCORES[state.board[r][c]] || 0;
+    }
+    if (!state.firstMove && !touchesExisting) return null;
+    score = score * wordMul + crossTotal;
+    if (positions.length === 7) score += 50;
+    return {word, score, row, col, orientation, positions, tilesUsed: usedLetters.length};
+  }
+
+  function gatherCrossWord(word, row, col, orientation, pr, pc){
+    const dr = orientation === 'H' ? 1 : 0;
+    const dc = orientation === 'V' ? 1 : 0;
+    let sr = pr, sc = pc;
+    while (inBounds(sr - dr, sc - dc) && state.board[sr - dr][sc - dc]) { sr -= dr; sc -= dc; }
+    let positions = [], built = '';
+    let cr = sr, cc = sc;
+    while (inBounds(cr, cc) && (state.board[cr][cc] || (cr === pr && cc === pc))) {
+      const letter = (cr === pr && cc === pc) ? word[(orientation === 'H' ? pc - col : pr - row)] : state.board[cr][cc];
+      built += letter;
+      positions.push({r:cr,c:cc,letter});
+      cr += dr; cc += dc;
+    }
+    return {word: built, positions};
+  }
+
+  function difficultySettings(){
+    return {
+      easy: {sample: 140, pick: 0.55},
+      medium: {sample: 350, pick: 0.82},
+      hard: {sample: WORDS.length, pick: 1}
+    }[state.difficulty];
+  }
+
+  function botTurn(){
+    if (!state.gameStarted) return;
+    state.botThinking = true;
+    state.pending = [];
+    state.selectedRackIndex = null;
+    renderAll();
+
+    const settings = difficultySettings();
+    let pool = WORDS.slice();
+    shuffleArray(pool);
+    pool = pool.slice(0, Math.min(settings.sample, pool.length));
+    // bias toward words actually buildable if board is empty
+    if (state.firstMove) {
+      pool = pool.filter(w => w.length <= 7 && canConstructFromRack(w, countLetters(state.botRack)));
+    }
+    let moves = [];
+    for (const word of pool) {
+      if (word.length > SIZE) continue;
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const h = evaluatePlacement(word, r, c, 'H', state.botRack);
+          if (h) moves.push(h);
+          const v = evaluatePlacement(word, r, c, 'V', state.botRack);
+          if (v) moves.push(v);
+        }
+      }
+    }
+    // fallback: if no moves found, scan entire dictionary once
+    if (!moves.length && settings.sample !== WORDS.length) {
+      for (const word of WORDS) {
+        if (word.length > SIZE) continue;
+        for (let r = 0; r < SIZE; r++) {
+          for (let c = 0; c < SIZE; c++) {
+            const h = evaluatePlacement(word, r, c, 'H', state.botRack);
+            if (h) moves.push(h);
+            const v = evaluatePlacement(word, r, c, 'V', state.botRack);
+            if (v) moves.push(v);
+          }
+        }
+      }
+    }
+
+    if (!moves.length) {
+      state.passesInRow++;
+      logMessage('Bot passed.');
+      state.botLastMovePositions = [];
+      state.botThinking = false;
+      renderAll();
+      if (checkEndGame()) return;
+      state.currentTurn = 'player';
+      setStatus('Bot passed. Your turn.');
+      return;
+    }
+
+    moves.sort((a,b) => b.score - a.score || b.tilesUsed - a.tilesUsed || a.word.localeCompare(b.word));
+    let chosen;
+    if (state.difficulty === 'hard') {
+      chosen = moves[0];
+    } else if (state.difficulty === 'medium') {
+      const cut = Math.max(1, Math.min(moves.length, Math.ceil(moves.length * 0.15)));
+      chosen = moves[Math.floor(Math.random() * cut)] || moves[0];
+    } else {
+      const cut = Math.max(1, Math.min(moves.length, Math.ceil(moves.length * 0.35)));
+      chosen = moves[Math.floor(Math.random() * cut)] || moves[Math.floor(Math.random() * Math.min(10, moves.length))] || moves[0];
+    }
+
+    const rackCopy = [...state.botRack];
+    for (const p of chosen.positions) {
+      const idx = rackCopy.indexOf(p.letter);
+      if (idx >= 0) rackCopy.splice(idx, 1);
+    }
+    state.botRack = rackCopy;
+    commitMove(chosen.positions, 'bot');
+    state.botScore += chosen.score;
+    refillRack(state.botRack);
+    state.botThinking = false;
+    logMessage(`Bot played <b>${chosen.word}</b> for ${chosen.score} point${chosen.score === 1 ? '' : 's'}.`);
+    renderAll();
+    if (checkEndGame()) return;
+    state.currentTurn = 'player';
+    setStatus(`Your turn. The bot played ${chosen.word}.`);
+  }
+
+  document.getElementById('submitBtn').addEventListener('click', submitPlayerMove);
+  document.getElementById('recallBtn').addEventListener('click', recallTiles);
+  document.getElementById('shuffleBtn').addEventListener('click', shuffleRack);
+  document.getElementById('passBtn').addEventListener('click', passTurn);
+  document.getElementById('newGameBtn').addEventListener('click', () => overlay.style.display = 'flex');
+  document.getElementById('newGameTop').addEventListener('click', () => overlay.style.display = 'flex');
+  document.getElementById('howBtn').addEventListener('click', () => {
+    alert('How to play:\n\n1. Choose a difficulty and start a game.\n2. Click a rack tile, then click a board square to place it.\n3. All tiles played this turn must be in one row or one column.\n4. The first word must cover the center star.\n5. Click Submit Move to score the word and let the bot play.\n6. Click a newly placed tile to take it back, or use Recall Tiles.\n7. The game starts with a built-in dictionary, then tries to upgrade to a larger online word list. You can also use the word checker on the right.');
+  });
+
+  document.querySelectorAll('.diff').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.diff').forEach(d => d.classList.remove('active'));
+      el.classList.add('active');
+      state.difficulty = el.dataset.difficulty;
+      difficultyTag.textContent = `Difficulty: ${capitalize(state.difficulty)}`;
+    });
+  });
+
+  document.getElementById('beginBtn').addEventListener('click', () => {
+    overlay.style.display = 'none';
+    newGame();
+  });
+
+  checkerBtn.addEventListener('click', checkLookupWord);
+  checkerInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkLookupWord();
+  });
+
+  setDictionaryUI('Built-in dictionary ready. Checking for a larger online dictionary...');
+  renderAll();
+  initializeDictionary();
+})();
+</script>
+</body>
+</html>
