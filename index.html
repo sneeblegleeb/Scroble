@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Scrabble-Style Duel</title>
+<title>Scroble</title>
 <style>
   :root{
     --bg:#1f2430; --panel:#2a3142; --panel2:#343d52; --text:#eef3ff; --muted:#b8c1d9;
@@ -61,7 +61,7 @@
   .diff{background:#36425a;border:1px solid #536685;border-radius:14px;padding:14px;cursor:pointer;text-align:center}
   .diff.active{outline:3px solid #7fd6ff}
   .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px}
-  .legend div{padding:8px;border-radius:10px;text-align:center}
+  .legend div{padding:8px;border-radius:10px;text-align:center;cursor:help}
   .message-log{max-height:200px;overflow:auto;background:#202838;border-radius:12px;padding:10px}
   .message-log div{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)}
   .message-log div:last-child{border-bottom:0}
@@ -73,8 +73,8 @@
 <div class="app">
   <div class="topbar">
     <div>
-      <div class="title">Scrabble-Style Duel</div>
-      <div class="subtitle">Single-file word game with built-in fallback dictionary, optional larger external list, board bonuses, 7-tile racks, and bot difficulty.</div>
+      <div class="title">Scroble</div>
+      <div class="subtitle">A scrabble-style word duel against the bot.</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn primary" id="newGameTop">New Game</button>
@@ -122,12 +122,12 @@
       <div class="sidebar-section">
         <div style="font-weight:700;margin-bottom:8px">Bonus Legend</div>
         <div class="legend">
-          <div style="background:var(--tw)">TW</div>
-          <div style="background:var(--dw)">DW</div>
-          <div style="background:var(--center);color:#2c2411">★</div>
-          <div style="background:var(--tl)">TL</div>
-          <div style="background:var(--dl)">DL</div>
-          <div style="background:#53617c">Normal</div>
+          <div style="background:var(--tw)" title="Triple Word: multiplies the full word score by 3">TW</div>
+          <div style="background:var(--dw)" title="Double Word: multiplies the full word score by 2">DW</div>
+          <div style="background:var(--center);color:#2c2411" title="Center star: the first word must cover this square, and it counts as Double Word">★</div>
+          <div style="background:var(--tl)" title="Triple Letter: multiplies that tile&#39;s letter score by 3">TL</div>
+          <div style="background:var(--dl)" title="Double Letter: multiplies that tile&#39;s letter score by 2">DL</div>
+          <div style="background:#53617c" title="Normal square: no score bonus">Normal</div>
         </div>
       </div>
 
@@ -135,14 +135,12 @@
         <div style="font-weight:700;margin-bottom:8px">Dictionary</div>
         <div class="status" id="dictStatus">Starting with built-in compact dictionary.</div>
         <div class="small" style="margin-top:8px">Current source: <span id="dictSourceLabel">Built-in compact list</span></div>
-        <div class="small" style="margin-top:6px">External full-list loading works best when the game is served over http/https, not opened directly as a file.</div>
-        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn" id="retryDictBtn">Reload Repo Dictionary</button>
           <label class="btn" for="dictFileInput" style="display:inline-flex;align-items:center">Load Word List File</label>
           <input id="dictFileInput" type="file" accept=".txt,.dic,.lst,.json" style="display:none" />
         </div>
-        <div class="small" style="margin-top:8px">Automatic loading now only checks your own repo on page load or when you press reload. Put a file like <code>words.txt</code>, <code>scrabble-dictionary.txt</code>, <code>dictionary.txt</code>, <code>words_dictionary.json</code>, or <code>dictionary.json</code> in the same repo as this game.</div>
-        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input id="dictUrlInput" type="text" placeholder="Custom repo path like /words.txt or ./assets/words.txt" style="flex:1;min-width:220px;background:#0b1220;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px" />
           <button class="btn" id="loadDictUrlBtn">Load Path</button>
         </div>
@@ -167,7 +165,7 @@
 
 <div class="overlay" id="startOverlay">
   <div class="modal">
-    <h2 style="margin-bottom:8px">Start a New Match</h2>
+    <h2 style="margin-bottom:8px">Start a New Game of Scroble</h2>
     <p class="small">Pick how strong the bot should be. Easy takes weaker moves, Medium tries decent scoring plays, Hard searches for stronger plays more often.</p>
     <div class="difficulty-grid" id="difficultyGrid">
       <div class="diff" data-difficulty="easy"><h3>Easy</h3><p class="small" style="margin-top:6px">Loose, simpler plays</p></div>
@@ -175,7 +173,7 @@
       <div class="diff" data-difficulty="hard"><h3>Hard</h3><p class="small" style="margin-top:6px">Best available move</p></div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-      <div class="small">Starts with the built-in dictionary, then tries to load a larger external word list when the browser allows it.</div>
+      <div class="small">Your current match auto-saves and comes back after refresh.</div>
       <button class="btn primary" id="beginBtn">Begin Game</button>
     </div>
   </div>
@@ -373,15 +371,15 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   async function tryLoadRepoDictionary(force=false){
     if (repoDictionaryLoaded && !force) return true;
     if (location.protocol === 'file:') {
-      updateDictionaryUI('Automatic repo dictionary loading needs the game to be served over <strong>http://</strong> or <strong>https://</strong>. When opened directly as <strong>file://</strong>, the built-in list stays active unless you manually load a file.');
+      updateDictionaryUI('Repo dictionary loading only works when the game is served over <strong>http://</strong> or <strong>https://</strong>.');
       return false;
     }
-    updateDictionaryUI('Trying to load a dictionary from this repo...');
+    updateDictionaryUI('Trying to load the repo dictionary...');
     for (const path of SAME_ORIGIN_DICTIONARY_PATHS) {
       const ok = await loadDictionaryFromPath(path, `repo dictionary (${path})`);
       if (ok) return true;
     }
-    updateDictionaryUI('No repo dictionary file was found, so the built-in compact list is still active. Upload <code>words.txt</code> or another supported dictionary file into the same repo to use a larger list automatically.');
+    updateDictionaryUI('No repo dictionary file was found. The built-in compact list is still active.');
     return false;
   }
 
@@ -1008,7 +1006,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     newGame();
   });
 
-  updateDictionaryUI('Starting with the built-in compact dictionary. The game will try the repo dictionary file automatically on load.');
+  updateDictionaryUI('Starting with the built-in compact dictionary. The game will try the repo dictionary automatically on load.');
   tryLoadRepoDictionary(false);
   const restored = loadSavedGameState();
   if (!restored) renderAll();
