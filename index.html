@@ -628,9 +628,10 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
       let mainWordMultiplier = 1;
       let crossTotal = 0;
       const placedSet = new Set(state.pending.map(p => `${p.r},${p.c}`));
+      const crossWords = [];
+      const seenCrossWords = new Set();
 
       for (const pos of main.positions) {
-        const key = `${pos.r},${pos.c}`;
         const score = LETTER_SCORES[pos.letter] || 0;
         if (pos.isNew) {
           if (pos.r === CENTER && pos.c === CENTER) touchesCenter = true;
@@ -669,6 +670,11 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
               thisCross += val;
             }
             crossTotal += thisCross * crossWordMultiplier;
+            const crossKey = cross.word + '|' + cross.positions.map(cp => `${cp.r},${cp.c}`).join(';');
+            if (!seenCrossWords.has(crossKey)) {
+              seenCrossWords.add(crossKey);
+              crossWords.push(cross.word);
+            }
           }
         } else {
           total += score;
@@ -686,7 +692,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
         tests.push({ok:false, reason:'Your play must connect to the existing board.'});
         continue;
       }
-      return {ok:true, word:main.word, score:total, positions:main.positions.filter(p => p.isNew)};
+      return {ok:true, word:main.word, score:total, positions:main.positions.filter(p => p.isNew), crossWords, orientation};
     }
     return tests[tests.length - 1] || {ok:false, reason:'Invalid placement.'};
   }
@@ -700,6 +706,21 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
 
   function refillRack(rack){ drawTiles(rack, RACK_SIZE); }
 
+  function formatWordList(words){
+    if (!words || !words.length) return '';
+    const styled = words.map(word => `<b>${word}</b>`);
+    if (styled.length === 1) return styled[0];
+    if (styled.length === 2) return `${styled[0]} and ${styled[1]}`;
+    return `${styled.slice(0, -1).join(', ')}, and ${styled[styled.length - 1]}`;
+  }
+
+  function formatMoveLog(actorLabel, result){
+    const scoreText = `${result.score} point${result.score === 1 ? '' : 's'}`;
+    const crossWords = (result.crossWords || []).filter(word => word && word !== result.word);
+    if (!crossWords.length) return `${actorLabel} played <b>${result.word}</b> for ${scoreText}.`;
+    return `${actorLabel} played <b>${result.word}</b>, also forming ${formatWordList(crossWords)}, for ${scoreText}.`;
+  }
+
   function submitPlayerMove(){
     if (state.currentTurn !== 'player' || state.botThinking) return;
     const result = validatePlayerMove();
@@ -709,7 +730,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     }
     commitMove(state.pending, 'player');
     state.playerScore += result.score;
-    logMessage(`You played <b>${result.word}</b> for ${result.score} point${result.score === 1 ? '' : 's'}.`);
+    logMessage(formatMoveLog('You', result));
     state.pending = [];
     refillRack(state.playerRack);
     renderAll();
@@ -799,6 +820,8 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     let score = 0;
     let wordMul = 1;
     let crossTotal = 0;
+    const crossWords = [];
+    const seenCrossWords = new Set();
 
     // Connectivity and cross-word validation
     const usedSet = new Set(positions.map(p => `${p.r},${p.c}`));
@@ -832,6 +855,11 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
           cs += val;
         }
         crossTotal += cs * cwMul;
+        const crossKey = cross.word + '|' + cross.positions.map(cp => `${cp.r},${cp.c}`).join(';');
+        if (!seenCrossWords.has(crossKey)) {
+          seenCrossWords.add(crossKey);
+          crossWords.push(cross.word);
+        }
       }
     }
 
@@ -842,7 +870,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     if (!state.firstMove && !touchesExisting) return null;
     score = score * wordMul + crossTotal;
     if (positions.length === 7) score += 50;
-    return {word, score, row, col, orientation, positions, tilesUsed: usedLetters.length};
+    return {word, score, row, col, orientation, positions, tilesUsed: usedLetters.length, crossWords};
   }
 
   function gatherCrossWord(word, row, col, orientation, pr, pc){
@@ -946,11 +974,11 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     state.botScore += chosen.score;
     refillRack(state.botRack);
     state.botThinking = false;
-    logMessage(`Bot played <b>${chosen.word}</b> for ${chosen.score} point${chosen.score === 1 ? '' : 's'}.`);
+    logMessage(formatMoveLog('Bot', chosen));
     renderAll();
     if (checkEndGame()) return;
     state.currentTurn = 'player';
-    setStatus(`Your turn. The bot played ${chosen.word}.`);
+    setStatus(`Your turn. The bot played ${chosen.word}${chosen.crossWords && chosen.crossWords.length ? ` and formed ${chosen.crossWords.filter(word => word !== chosen.word).join(', ')}.` : '.'}`);
     saveGameState();
   }
 
