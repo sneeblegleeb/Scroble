@@ -383,6 +383,19 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     return false;
   }
 
+  let repoLoadScheduled = false;
+  function scheduleRepoDictionaryLoad(delay=1200){
+    if (repoLoadScheduled || repoDictionaryLoaded) return;
+    repoLoadScheduled = true;
+    window.setTimeout(async () => {
+      try {
+        await tryLoadRepoDictionary(false);
+      } finally {
+        repoLoadScheduled = false;
+      }
+    }, delay);
+  }
+
   async function runWordCheck(){
     const word = checkerInput.value.trim().toUpperCase();
     checkerResult.className = 'checker-result';
@@ -1303,21 +1316,20 @@ WORST WORTH WOULD WOUND WRATH WRECK WRITE WRONG WROTE YEARN YEAST YIELD YOUNG YO
   });
 
   bindTap(document.getElementById('beginBtn'), () => {
-    closeStartMenu();
-    window.setTimeout(() => {
-      try {
-        newGame();
-      } catch (err) {
-        console.error('Begin Game failed', err);
-        setStatus('There was a problem starting the game. Refresh and try again.');
-      }
-    }, 0);
+    try {
+      closeStartMenu();
+      newGame();
+      scheduleRepoDictionaryLoad(1500);
+    } catch (err) {
+      console.error('Begin Game failed', err);
+      setStatus('There was a problem starting the game. Refresh and try again.');
+    }
   });
 
-  updateDictionaryUI('Starting with the built-in compact dictionary. The game will try the repo dictionary automatically on load.');
-  tryLoadRepoDictionary(false);
+  updateDictionaryUI('Starting with the built-in compact dictionary. The repo dictionary will load shortly after the page settles.');
   const restored = loadSavedGameState();
   if (!restored) renderAll();
+  scheduleRepoDictionaryLoad(1500);
 })();
 </script>
 </body>
