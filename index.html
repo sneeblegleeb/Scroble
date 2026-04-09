@@ -892,40 +892,64 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   function difficultySettings(){
     return {
       easy: {
-        sample: 220,
-        poolFraction: 0.45,
-        scoreWeight: 0.55,
+        sample: 240,
+        poolFraction: 0.5,
+        scoreWeight: 0.5,
         qualityWeight: 1.35,
+        commonnessWeight: 1.5,
         rackLeaveWeight: 0.55,
-        randomness: 0.9,
-        shortWordPenalty: {2: 7, 3: 2},
-        uglyPenaltyScale: 1.45,
+        randomness: 1.0,
+        shortWordPenalty: {2: 7, 3: 2.5},
+        uglyPenaltyScale: 1.55,
+        mediumWordPenaltyScale: 1.15,
+        rareWordPenaltyScale: 2.15,
         bingoWeight: 0.35,
-        description: 'Easy favors simpler, more human-looking words and makes more imperfect choices.'
+        strongCommonness: 11,
+        softCommonness: 7,
+        minHumanPool: 10,
+        softPassChance: 0.04,
+        rarePassChance: 0.11,
+        description: 'Easy favors simple, common words, gets shaky with rarer vocabulary, and occasionally passes instead of forcing a weird play.'
       },
       medium: {
-        sample: 650,
-        poolFraction: 0.2,
+        sample: 700,
+        poolFraction: 0.22,
         scoreWeight: 0.8,
         qualityWeight: 0.95,
+        commonnessWeight: 1.05,
         rackLeaveWeight: 0.35,
-        randomness: 0.35,
+        randomness: 0.3,
         shortWordPenalty: {2: 4, 3: 1},
-        uglyPenaltyScale: 0.9,
+        uglyPenaltyScale: 0.95,
+        mediumWordPenaltyScale: 0.65,
+        rareWordPenaltyScale: 1.15,
         bingoWeight: 0.7,
-        description: 'Medium balances score with cleaner-looking plays.'
+        strongCommonness: 9,
+        softCommonness: 5.5,
+        minHumanPool: 7,
+        softPassChance: 0.02,
+        rarePassChance: 0.05,
+        description: 'Medium balances score with more natural vocabulary and only dips into rarer words when the board tightens up.'
       },
       hard: {
         sample: WORDS.length,
-        poolFraction: 0.06,
+        poolFraction: 0.08,
         scoreWeight: 1.0,
         qualityWeight: 0.55,
+        commonnessWeight: 0.5,
         rackLeaveWeight: 0.12,
         randomness: 0.05,
         shortWordPenalty: {2: 2, 3: 0},
         uglyPenaltyScale: 0.45,
+        mediumWordPenaltyScale: 0.2,
+        rareWordPenaltyScale: 0.45,
         bingoWeight: 1.0,
-        description: 'Hard hunts strong scoring plays but still avoids a lot of ugly junk words.'
+        strongCommonness: 7,
+        softCommonness: 3.5,
+        minHumanPool: 4,
+        softPassChance: 0.005,
+        rarePassChance: 0.015,
+        description: 'Hard still pushes for strong scores, but it prefers plausible vocabulary before reaching for obscure dictionary goblin stuff.'
       }
     }[state.difficulty];
   }
@@ -934,7 +958,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     const vowels = (word.match(/[AEIOU]/g) || []).length;
     const ys = (word.match(/Y/g) || []).length;
     const rare = (word.match(/[JQXZ]/g) || []).length;
-    const repeated = /([A-Z]){1,}/.test(word);
+    const repeated = /([A-Z])\1{1,}/.test(word);
     const commonChunks = ['ING','ED','ER','ERS','EST','LY','TION','MENT','NESS','ABLE','OUS','ATE','AL','RE','IN','ON','AN','ST','EN','AT','OU','EA','CH','SH','TH'];
     let score = 0;
     score += Math.min(word.length, 8) * 1.35;
@@ -954,6 +978,84 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     if (/^[A-Z]{2}$/.test(word)) score -= 1.5;
     for (const chunk of commonChunks) if (word.includes(chunk)) score += 0.55;
     return score;
+  }
+
+  const VERY_COMMON_WORDS = new Set(`A I AN AM AS AT BE BY DO GO HE HI IF IN IS IT ME MY NO OF OH ON OR TO UP US WE
+THE AND FOR YOU YOUR HIS HER SHE HIM OUR OUT NOT BUT ALL ANY CAN HAD HAS HAVE HERES HERS HOW ITS MAN MEN NEW NOW OLD ONE SEE SHES
+TWO WHO WHY YES YET ABOUT ABOVE AFTER AGAIN ALMOST ALONG AROUND AWAY BACK BEEN BEFORE BELOW BETWEEN BOTH BRING CAME COME COMES
+COULD DEAR DOES DONE DOWN EACH EVEN EVER EVERY FIND FIRST FROM GIVE GOES GOOD GREAT HAND HERE HOME HOUSE INTO JUST KNOW LAST LEAVE
+LEFT LIFE LIKE LONG LOOK MADE MAKE MANY MORE MOST MUCH MUST NAME NEED NEXT ONLY OVER PART PEOPLE PLACE PLAY RIGHT SAID SAME SOME
+STILL SUCH TAKE THAN THAT THEIR THEM THEN THERE THESE THEY THING THIS THOSE THOUGHT THREE TIME TODAY TOGETHER TOLD TOO VERY WANT
+WATER WELL WENT WERE WHAT WHEN WHERE WHICH WHILE WHOLE WILL WITH WORK WOULD YEARS YOUNG`).trim().split(/\s+/));
+
+  const COMMON_WORDS = new Set(`ABLE ACID ACORN ACTOR ADAPT ADDED ADMIT ADOPT ADORE ADULT AFTER AGAIN AGENT AGREE AHEAD ALBUM ALERT ALIVE ALLOW ALONE ALONG
+ANGEL ANGER ANGLE ANGRY APPLE APPLY APRON ARGUE ARISE ARMOR ARROW ASIDE ASSET AUDIO AVOID AWARE BADGE BASIC BATCH BEACH BEARD BEAST BEGIN BEING
+BELLY BELOW BENCH BERRY BIRTH BLACK BLADE BLAME BLANK BLAZE BLEND BLESS BLIND BLOCK BLOOD BLOOM BOARD BOAST BONEY BOOST BOOTH BRAIN BRAKE BRAND
+BRAVE BREAD BREAK BREED BRICK BRIDE BRIEF BRING BROAD BROKE BROWN BRUSH BUILD BUNCH BUYER CABLE CANDY CANOE CAPER CARGO CARRY CARVE CATCH CAUSE
+CEDAR CHAIN CHAIR CHALK CHAMP CHARGE CHARM CHART CHASE CHEAP CHECK CHEEK CHEER CHESS CHEST CHIEF CHILD CHILL CHIME CHINA CHOICE CHOOSE CIDER
+CIGAR CLAIM CLASS CLEAN CLEAR CLERK CLICK CLIMB CLOCK CLOSE CLOUD COACH COAST COLOR COMET COMIC CORAL COUCH COUGH COUNT COURT COVER CRAFT CRANE
+CRASH CRAZY CREAM CREEK CREST CRIME CRISP CROWD CROWN CRUSH CURVE CYCLE DAILY DAIRY DANCE DATED DEALT DEATH DEBIT DECAY DECOR DELAY DELTA DEMON
+DENIM DENSE DEPTH DIARY DINER DIRTY DISCO DOING DONOR DOUBT DOZEN DRAFT DRAIN DRAMA DRAWN DREAM DRESS DRIED DRINK DRIVE EAGER EAGLE EARLY EARTH
+EASEL EATEN EIGHT ELBOW ELDER ELECT ELITE EMBER EMPTY ENEMY ENJOY ENTER ENTRY EPOCH EQUAL ERASE ERROR ESSAY ETHIC EVENT EVERY EXACT EXCEL EXIST
+EXTRA FABLE FACET FAIRY FAITH FALSE FANCY FARCE FATAL FAULT FAVOR FEAST FENCE FERRY FEVER FIBER FIELD FIFTH FIFTY FIGHT FINAL FIRST FLAIR FLAKE
+FLAME FLARE FLASH FLEET FLESH FLICK FLOAT FLOOD FLOOR FLOUR FOCUS FORCE FORGE FORTH FORTY FOUND FRAME FRESH FRONT FROST FRUIT FULLY FUNNY GIANT
+GIVEN GLASS GLAZE GLEAM GLOBE GLOOM GLORY GLOVE GOING GRACE GRADE GRAIN GRAND GRANT GRAPE GRAPH GRASP GRASS GRATE GREAT GREEN GROSS GROUP GROVE
+GROWN GUARD GUEST GUIDE GUILD GUILT HABIT HAIRY HANDY HAPPY HASTE HATCH HATER HAVEN HAZEL HEART HEAVY HEDGE HELLO HENCE HERON HOBBY HONEY HONOR
+HORSE HOTEL HOUSE HUMAN HUMOR HURRY IDEAL IDIOM IMAGE IMPLY INDEX INNER INPUT IRONY IVORY JELLY JOLLY JUDGE JUICE KNOCK KNOWN LABEL LABOR LARGE
+LASER LATER LAUGH LAYER LEAFY LEARN LEASE LEAST LEDGE LEGAL LEMON LEVEL LEVER LIGHT LIMIT LINEN LIVER LOBBY LOCAL LODGE LOGIC LONER LOOSE LOSER
+LOVER LOWER LOYAL LUCKY LUNCH LUNAR LYRIC MAGIC MAJOR MAKER MANGO MANOR MAPLE MARCH MARSH MATCH MAYBE MAYOR MEDAL MEDIA MERCY MERIT METAL METER
+MICRO MIGHT MINER MINOR MINUS MIXER MODEL MONEY MONTH MORAL MOTOR MOUNT MOUSE MOUTH MOVIE MUSIC NAKED NARROW NASTY NAVAL NEEDY NERVE NEVER NICER
+NIGHT NINJA NOBLE NOISE NORTH NOVEL NUDGE NURSE OASIS OCEAN OFFER OFTEN OLIVE OMEGA ONION OPERA ORDER OTHER OUNCE OUTER OWNER OXIDE PANEL PANIC
+PAPER PARTY PASTA PATCH PATIO PAUSE PEACE PEACH PEARL PEDAL PENNY PHASE PHONE PHOTO PIANO PIERCE PILOT PINCH PITCH PIVOT PLACE PLAIN PLANE PLANT
+PLATE PLEAD POINT POLAR PORCH POWER PRESS PRICE PRIDE PRIME PRINT PRIOR PRISM PRIZE PROBE PROOF PROUD PROVE PULSE PUPIL PURER QUEEN QUERY QUEST
+QUICK QUIET QUITE QUOTA QUOTE RACER RADIO RAISE RALLY RANCH RANGE RAPID RATIO REACH REACT READY REALM REBEL REFER REIGN RELAX RELAY RENEW REPLY
+RESET RHINO RIDER RIDGE RIFLE RIGHT RIGID RINSE RIPEN RIVER ROBIN ROCKY ROMAN ROOST ROUGH ROUND ROUTE ROYAL RULER RURAL SALAD SALON SALTY SANER
+SAUCE SCALE SCALP SCENE SCENT SCORE SCOUT SCRAP SCREW SEEDY SENSE SERVE SEVEN SEVERAL SHADE SHAKE SHALL SHAME SHAPE SHARE SHARK SHARP SHAVE SHEAR
+SHEET SHELF SHELL SHIFT SHINE SHINY SHOCK SHOOT SHORE SHORT SHOUT SHOWN SHRUB SIGHT SILKY SINCE SIREN SIXTH SKATE SKILL SKIRT SKULL SLACK SLATE
+SLEEP SLICE SLICK SLIDE SLOPE SMALL SMART SMILE SMOKE SNAKE SNEAK SNORE SOLAR SOLID SOLVE SONAR SORRY SOUND SOUTH SPACE SPADE SPARE SPARK SPEAK
+SPEED SPELL SPEND SPICE SPIKE SPILL SPINE SPLIT SPOIL SPOKE SPORT SPRAY SPREE SQUAD STACK STAFF STAGE STAIN STAIR STAKE STALE STAMP STAND STARE
+STARK START STASH STATE STEAD STEAK STEAL STEAM STEEL STEEP STEER STICK STILL STING STOCK STONE STOOD STORM STORY STOUT STRAP STRAW STRIP STUCK
+STUDY STUFF STYLE SUGAR SUITE SUNNY SUPER SWAMP SWEAR SWEAT SWEEP SWEET SWELL SWIFT SWING SWIRL SWORD TABLE TAKEN TAKER TASTE TEACH TEMPO THANK
+THEFT THEIR THEME THERE THICK THIEF THING THINK THIRD THORN THOSE THREE THREW THROW THUMB TIGER TIGHT TIMER TIRED TITLE TOAST TODAY TOKEN TONIC
+TOOTH TOPIC TOTAL TOUCH TOUGH TOWER TRACE TRACK TRADE TRAIL TRAIN TRAIT TRASH TREAD TREAT TREND TRIAL TRIBE TRICK TRIED TROOP TROUT TRUCK TRULY
+TRUNK TRUST TRUTH TULIP TUMOR TUNIC TURBO TWICE TYING ULTRA UNCLE UNDER UNION UNITY UNTIL UPPER UPSET URBAN USAGE USHER USUAL VAGUE VALID VALUE
+VALVE VAPOR VAULT VENOM VENUE VERGE VERSE VIDEO VIGOR VINYL VIOLA VIRAL VIRUS VISIT VISTA VITAL VIVID VOCAL VOICE VOTER WAGON WAIST WAIVE WATER
+WEARY WEAVE WEDGE WEIGH WEIRD WHALE WHEAT WHEEL WHERE WHICH WHILE WHINE WHITE WHOLE WHOSE WIDEN WIDER WIELD WITCH WOMAN WOMEN WORLD WORRY WORSE
+WORST WORTH WOULD WOUND WRATH WRECK WRITE WRONG WROTE YEARN YEAST YIELD YOUNG YOUTH ZEBRA ZESTY ZONED`.trim().split(/\s+/));
+
+  const COMMON_CHUNKS = ['ING','ER','ED','EST','LY','TION','MENT','NESS','LESS','FUL','ABLE','IBLE','SHIP','HOME','HOUSE','LIGHT','WATER','WORK','HAND','HEAD','HEART','TIME','DAY','WELL','OVER','UNDER','TH','SH','CH','ST','ER','RE','IN','ON','AN','EN','AT','OU','EA'];
+
+  function wordCommonness(word){
+    let score = 0;
+    if (VERY_COMMON_WORDS.has(word)) score += 12;
+    else if (COMMON_WORDS.has(word)) score += 8;
+
+    if (word.length >= 3 && word.length <= 8) score += 1.8;
+    if (word.length >= 4 && word.length <= 7) score += 1.2;
+    if (word.length >= 10) score -= 1.6;
+    if (word.length >= 12) score -= 1.5;
+    if (word.length === 2) score -= 0.8;
+
+    for (const chunk of COMMON_CHUNKS) {
+      if (word.includes(chunk)) score += 0.3;
+    }
+
+    if (/ING$|ED$|ER$|LY$|EST$|TION$|MENT$|NESS$|ABLE$|FUL$|LESS$|ERS$|IES$/.test(word)) score += 1.1;
+    if (/^[A-Z][AEIOUY][A-Z]$/.test(word)) score += 0.4;
+
+    if (/Q(?!U)/.test(word)) score -= 2.5;
+    if (/[^AEIOUY]{4,}/.test(word)) score -= 2.25;
+    if (/[JQXZ]{2,}/.test(word)) score -= 2.5;
+    if (/([A-Z])\1{1,}/.test(word) && word.length <= 5) score -= 1.4;
+    if (/^[A-Z]{2,3}$/.test(word) && !VERY_COMMON_WORDS.has(word) && !COMMON_WORDS.has(word)) score -= 1.5;
+
+    return score;
+  }
+
+  function botVocabularyBand(commonness, settings){
+    if (commonness >= settings.strongCommonness) return 'common';
+    if (commonness >= settings.softCommonness) return 'uncommon';
+    return 'rare';
   }
 
   function rackLeaveValue(rack){
@@ -982,14 +1084,20 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
       if (idx >= 0) rackAfter.splice(idx, 1);
     }
     const quality = wordQuality(move.word);
+    const commonness = wordCommonness(move.word);
+    const vocabularyBand = botVocabularyBand(commonness, settings);
     const crossBonus = (move.crossWords || []).filter(w => w && w !== move.word).length * 0.9;
     const shortPenalty = (settings.shortWordPenalty[move.word.length] || 0);
     const uglyPenalty = Math.max(0, 2 - quality) * settings.uglyPenaltyScale;
+    const mediumPenalty = vocabularyBand === 'uncommon' ? settings.mediumWordPenaltyScale : 0;
+    const rarePenalty = vocabularyBand === 'rare' ? settings.rareWordPenaltyScale : 0;
     const bingoBonus = move.tilesUsed === 7 ? 8 * settings.bingoWeight : 0;
     const leave = rackLeaveValue(rackAfter) * settings.rackLeaveWeight;
     const randomness = (Math.random() - 0.5) * 2 * settings.randomness;
-    move.preference = move.score * settings.scoreWeight + quality * settings.qualityWeight + leave + crossBonus + bingoBonus - shortPenalty - uglyPenalty + randomness;
+    move.preference = move.score * settings.scoreWeight + quality * settings.qualityWeight + commonness * settings.commonnessWeight + leave + crossBonus + bingoBonus - shortPenalty - uglyPenalty - mediumPenalty - rarePenalty + randomness;
     move.quality = quality;
+    move.commonness = commonness;
+    move.vocabularyBand = vocabularyBand;
     return move.preference;
   }
 
@@ -1004,7 +1112,6 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     let pool = WORDS.slice();
     shuffleArray(pool);
     pool = pool.slice(0, Math.min(settings.sample, pool.length));
-    // bias toward words actually buildable if board is empty
     if (state.firstMove) {
       pool = pool.filter(w => w.length <= 7 && canConstructFromRack(w, countLetters(state.botRack)));
     }
@@ -1020,7 +1127,6 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
         }
       }
     }
-    // fallback: if no moves found, scan entire dictionary once
     if (!moves.length && settings.sample !== WORDS.length) {
       for (const word of WORDS) {
         if (word.length > SIZE) continue;
@@ -1050,8 +1156,42 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
 
     for (const move of moves) botMovePreference(move, settings);
     moves.sort((a,b) => b.preference - a.preference || b.score - a.score || b.tilesUsed - a.tilesUsed || a.word.localeCompare(b.word));
-    const cut = Math.max(1, Math.min(moves.length, Math.ceil(moves.length * settings.poolFraction)));
-    const finalists = moves.slice(0, cut);
+
+    const commonMoves = moves.filter(m => m.commonness >= settings.strongCommonness);
+    const softerMoves = moves.filter(m => m.commonness >= settings.softCommonness);
+
+    let finalists;
+    let searchBand = 'rare';
+    if (commonMoves.length >= settings.minHumanPool) {
+      finalists = commonMoves;
+      searchBand = 'common';
+    } else if (softerMoves.length) {
+      finalists = softerMoves;
+      searchBand = 'uncommon';
+    } else {
+      finalists = moves;
+      searchBand = 'rare';
+    }
+
+    const cut = Math.max(1, Math.min(finalists.length, Math.ceil(finalists.length * settings.poolFraction)));
+    finalists = finalists.slice(0, cut);
+
+    let passChance = 0;
+    if (searchBand === 'uncommon') passChance = settings.softPassChance;
+    if (searchBand === 'rare') passChance = settings.rarePassChance;
+    if (passChance > 0 && Math.random() < passChance) {
+      state.passesInRow++;
+      logMessage(`Bot passed instead of forcing a ${searchBand} word.`);
+      state.botLastMovePositions = [];
+      state.botThinking = false;
+      renderAll();
+      if (checkEndGame()) return;
+      state.currentTurn = 'player';
+      setStatus('Bot passed. Your turn.');
+      saveGameState();
+      return;
+    }
+
     const chosen = finalists[Math.floor(Math.random() * finalists.length)] || moves[0];
 
     const rackCopy = [...state.botRack];
@@ -1068,7 +1208,8 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     renderAll();
     if (checkEndGame()) return;
     state.currentTurn = 'player';
-    setStatus(`Your turn. The bot played ${chosen.word}${chosen.crossWords && chosen.crossWords.length ? ` and formed ${chosen.crossWords.filter(word => word !== chosen.word).join(', ')}.` : '.'}`);
+    const bandNote = chosen.vocabularyBand === 'rare' ? ' It had to dig pretty deep for that one.' : chosen.vocabularyBand === 'uncommon' ? ' It was running a bit short on ordinary options.' : '';
+    setStatus(`Your turn. The bot played ${chosen.word}${chosen.crossWords && chosen.crossWords.length ? ` and formed ${chosen.crossWords.filter(word => word !== chosen.word).join(', ')}.` : '.'}${bandNote}`);
     saveGameState();
   }
 
