@@ -386,14 +386,27 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   let repoLoadScheduled = false;
   function scheduleRepoDictionaryLoad(delay=1200){
     if (repoLoadScheduled || repoDictionaryLoaded) return;
+    if (overlay && overlay.style.display !== 'none') return;
+    if (!state.gameStarted) return;
     repoLoadScheduled = true;
-    window.setTimeout(async () => {
+
+    const runner = async () => {
       try {
         await tryLoadRepoDictionary(false);
       } finally {
         repoLoadScheduled = false;
       }
-    }, delay);
+    };
+
+    const kickoff = () => {
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => { runner(); }, { timeout: 4000 });
+      } else {
+        window.setTimeout(runner, 0);
+      }
+    };
+
+    window.setTimeout(kickoff, delay);
   }
 
   async function runWordCheck(){
@@ -425,10 +438,12 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
   function openStartMenu(){
     syncDifficultyUI();
     overlay.style.display = 'flex';
+    overlay.setAttribute('aria-hidden', 'false');
   }
 
   function closeStartMenu(){
     overlay.style.display = 'none';
+    overlay.setAttribute('aria-hidden', 'true');
   }
 
   async function loadCustomDictionaryUrl(path){
@@ -1284,8 +1299,8 @@ WORST WORTH WOULD WOUND WRATH WRECK WRITE WRONG WROTE YEARN YEAST YIELD YOUNG YO
   document.getElementById('recallBtn').addEventListener('click', recallTiles);
   document.getElementById('shuffleBtn').addEventListener('click', shuffleRack);
   document.getElementById('passBtn').addEventListener('click', passTurn);
-  bindTap(document.getElementById('newGameBtn'), openStartMenu);
-  bindTap(document.getElementById('newGameTop'), openStartMenu);
+  bindTap(document.getElementById('newGameBtn'), () => { openStartMenu(); });
+  bindTap(document.getElementById('newGameTop'), () => { openStartMenu(); });
   document.getElementById('howBtn').addEventListener('click', () => {
     alert('How to play:\n\n1. Choose a difficulty and start a game.\n2. Click a rack tile, then click a board square to place it.\n3. All tiles played this turn must be in one row or one column.\n4. The first word must cover the center star.\n5. Click Submit Move to score the word and let the bot play.\n6. Click a newly placed tile to take it back, or use Recall Tiles.\n7. The game auto-saves in your browser and restores on refresh. Use New Game when you want to reset the board.\n8. The game starts with a built-in dictionary and tries to load a repo dictionary file automatically. You can still use the Load Word List File button any time.');
   });
@@ -1319,17 +1334,24 @@ WORST WORTH WOULD WOUND WRATH WRECK WRITE WRONG WROTE YEARN YEAST YIELD YOUNG YO
     try {
       closeStartMenu();
       newGame();
-      scheduleRepoDictionaryLoad(1500);
+      renderAll();
+      window.setTimeout(() => {
+        scheduleRepoDictionaryLoad(2500);
+      }, 0);
     } catch (err) {
       console.error('Begin Game failed', err);
       setStatus('There was a problem starting the game. Refresh and try again.');
     }
   });
 
-  updateDictionaryUI('Starting with the built-in compact dictionary. The repo dictionary will load shortly after the page settles.');
+  updateDictionaryUI('Starting with the built-in compact dictionary. The repo dictionary will load after a game starts.');
   const restored = loadSavedGameState();
-  if (!restored) renderAll();
-  scheduleRepoDictionaryLoad(1500);
+  if (!restored) {
+    openStartMenu();
+    renderAll();
+  } else if (state.gameStarted) {
+    scheduleRepoDictionaryLoad(2500);
+  }
 })();
 </script>
 </body>
