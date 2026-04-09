@@ -308,7 +308,7 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
       if (dictUrlInput && typeof saved.dictUrlInputValue === 'string') dictUrlInput.value = saved.dictUrlInputValue;
 
       document.querySelectorAll('.diff').forEach(d => d.classList.toggle('active', d.dataset.difficulty === state.difficulty));
-      difficultyTag.textContent = `Difficulty: ${capitalize(state.difficulty)}`;
+      syncDifficultyUI();
       saveGameState();
       overlay.style.display = 'none';
       renderAll();
@@ -402,6 +402,32 @@ ABOUT ABOVE ABUSE ACTING ACTION ACTIVE ACTORLY ACTUAL ADMIRE ADVICE AFFAIR AFFOR
     }
     checkerResult.classList.add('bad');
     checkerResult.innerHTML = `<strong>${word}</strong> is not in the active dictionary (${dictionarySource}).`;
+  }
+
+  function syncDifficultyUI(){
+    document.querySelectorAll('.diff').forEach(d => d.classList.toggle('active', d.dataset.difficulty === state.difficulty));
+    difficultyTag.textContent = `Difficulty: ${capitalize(state.difficulty)}`;
+  }
+
+  function openStartMenu(){
+    syncDifficultyUI();
+    overlay.style.display = 'flex';
+  }
+
+  function closeStartMenu(){
+    overlay.style.display = 'none';
+  }
+
+  async function loadCustomDictionaryUrl(path){
+    const target = String(path || '').trim();
+    if (!target) {
+      updateDictionaryUI('Enter a repo path like <strong>./words.txt</strong> or <strong>/assets/words.txt</strong>.');
+      return false;
+    }
+    updateDictionaryUI(`Trying to load dictionary from <strong>${target.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</strong>...`);
+    const ok = await loadDictionaryFromPath(target, `repo dictionary (${target})`);
+    if (!ok) updateDictionaryUI(`Could not load a dictionary from <strong>${target.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</strong>. The current dictionary is still active.`);
+    return ok;
   }
 
   function createEmptyBoard(){
@@ -1245,23 +1271,21 @@ WORST WORTH WOULD WOUND WRATH WRECK WRITE WRONG WROTE YEARN YEAST YIELD YOUNG YO
   document.getElementById('recallBtn').addEventListener('click', recallTiles);
   document.getElementById('shuffleBtn').addEventListener('click', shuffleRack);
   document.getElementById('passBtn').addEventListener('click', passTurn);
-  document.getElementById('newGameBtn').addEventListener('click', () => overlay.style.display = 'flex');
-  document.getElementById('newGameTop').addEventListener('click', () => overlay.style.display = 'flex');
+  document.getElementById('newGameBtn').addEventListener('click', openStartMenu);
+  document.getElementById('newGameTop').addEventListener('click', openStartMenu);
   document.getElementById('howBtn').addEventListener('click', () => {
     alert('How to play:\n\n1. Choose a difficulty and start a game.\n2. Click a rack tile, then click a board square to place it.\n3. All tiles played this turn must be in one row or one column.\n4. The first word must cover the center star.\n5. Click Submit Move to score the word and let the bot play.\n6. Click a newly placed tile to take it back, or use Recall Tiles.\n7. The game auto-saves in your browser and restores on refresh. Use New Game when you want to reset the board.\n8. The game starts with a built-in dictionary and tries to load a repo dictionary file automatically. You can still use the Load Word List File button any time.');
   });
 
   document.querySelectorAll('.diff').forEach(el => {
     el.addEventListener('click', () => {
-      document.querySelectorAll('.diff').forEach(d => d.classList.remove('active'));
-      el.classList.add('active');
       state.difficulty = el.dataset.difficulty;
-      difficultyTag.textContent = `Difficulty: ${capitalize(state.difficulty)}`;
+      syncDifficultyUI();
     });
   });
 
   document.getElementById('beginBtn').addEventListener('click', () => {
-    overlay.style.display = 'none';
+    closeStartMenu();
     newGame();
   });
 
